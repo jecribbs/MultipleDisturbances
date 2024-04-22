@@ -4,7 +4,7 @@
 
 
 # Set the working directory
-setwd("/Users/jennifercribbs/Documents/YOSE/Analysis/")
+setwd("/Users/jennifercribbs/Documents/YOSE/Analysis/MultipleDisturbances/")
 
 # Load initial packages
 library(tidyverse)
@@ -12,7 +12,7 @@ library(readxl)
 library(VIM)
 
 # setting the directory for data extraction
-datadir <- "/Users/jennifercribbs/Documents/YOSE/Analysis/YPE_Data"
+datadir <- "/Users/jennifercribbs/Documents/YOSE/Analysis/MultipleDisturbances/Data/RawData/YPE_Data"
 
 # list all file names in the data directory
 files <- list.files(datadir)
@@ -35,7 +35,9 @@ for (folder in folders) {
 summary(tree_list)
 # still need to convert dOutL_m, DBH_cm, and height_m or figure out what is wrong
 
-# implement a for loop to do the following for each plot
+write_csv(tree_list, "Data/CleanData/TreeData.csv")
+
+# implement a for loop to determine length and width for each associated tree plot
 for (i in 1:59) {
   plot_data <- tree_list %>% filter(plot == i)
   treePlotLength[i] <- max(plot_data$dOut_m, na.rm = TRUE)
