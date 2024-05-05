@@ -4,6 +4,7 @@
 # Date: 13 April 2024
 
 # Function Input: List of tibbles containing all Understory data from each plot in the Transcribed Data folder. Field data was recorded with each point along the transect (1-50m) representing a row. Each plant or substrate that touched the pin flag at a given point was recorded as a 4 letter species code. Some points contain many hits. 
+
 # Function Description: This function will take one of the plot-level data frames and turn it into a 4-column long-format data frame that contains the plot ID in column 1, the dOut_m pin location in column 2, whether the species was at the pin location (pin) or associated with it (assoc = not hit but within a 5m belt on either side of the transect line) and each species observation (code, full name, or unknown description) in column 4.
 # To do this, we need 2 things: 1) count how many species are present at each location; 2) take all the species observations across all locations, get rid of the NAs and turn them into a long vector. 
 

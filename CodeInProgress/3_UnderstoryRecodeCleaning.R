@@ -33,34 +33,39 @@ all_plots_understory %>%
 # Correct misspellings
 spellcheck <- all_plots_understory %>% 
   mutate(species = case_when(
-    species %in% c("littter", "ltter", "littler", "litterlitter", "pinecone") ~ "litter",
+    species %in% c("littter", "ltter", "littler", "litterlitter", "lItter", "pinecone", "bark") ~ "litter",
     species %in% c("bare", "dirt", "DG", "dg") ~ "bareground",
     species %in% c("rcok", "gravel") ~ "rock",
-    species %in% c("unknown_DD", "QUKE_DD") ~ "wood",
+    species %in% c("^_DD") ~ "wood",
     species == "Pranus" ~ "Prunus",
     species %in% c("PPREM", "PREM") ~ "Prunus emarginata",
     species == "cynocerous" ~ "Cynosurus echinatus",
-    species == "striptanthis" ~ "Streptanthus tortuosus",
-    species %in% c("Saxifrogacea", "Saxifrage", "unk_saxifrage") ~ "Saxifragaceae",
+    species %in% c("striptanthis", "streptanthus tortuosus") ~ "Streptanthus tortuosus",
+    species %in% c("Saxifrogacea", "saxifrogacea", "Saxifrage", "unk_saxifrage") ~ "Saxifragaceae",
+    species %in% c("castilleja", "castelleja") ~ "Castilleja sp.",
+    grepl("^QUWE_", species, ignore.case = TRUE) ~ "QUWI",
     TRUE ~ species
   ))
 
 # Look at all unique hits
-unique(spellcheck$species) # 488
+unique(spellcheck$species) # 486
 
-# Deal with Unknowns and common names--Monday: add whisker plant, fireweed, and horsetail 
+# Convert common names to scientific 
 known <- spellcheck %>% 
   mutate(species = case_when(
-    species %in% c("moss1", "moss2") ~ "moss",
+    #species %in% c("moss1", "moss2") ~ "moss", # do we want to count brophytes, lichens, etc???
     species == "madia?" ~ "Asteraceae",
     species == "cryptantha/plagiobothrys" ~ "Boraginaceae",
     species == "brome" ~ "Bromus",
+    species == "fireweed" ~ "Chamerion angustifolium",
+    species == "horsetail" ~ "Equisetum sp.",
     species %in% c("elgl", "ELGL") ~ "Elymus glaucus",
+    species %in% c("whisker plant", "whisker brush") ~ "Leptosiphon ciliatus",
     TRUE ~ species
   ))
 
 # Look at all unique hits
-unique(known$species) # 487
+unique(known$species) # 484
 
 # lump all carex for now
 carexcheck <- known %>% 
@@ -70,7 +75,7 @@ carexcheck <- known %>%
     TRUE ~ species
   ))
 # Look at all unique hits
-unique(carexcheck$species) # 433
+unique(carexcheck$species) # 430
 
 # lump all unknown grasses for now
 grassgroup <- carexcheck %>% 
@@ -79,19 +84,70 @@ grassgroup <- carexcheck %>%
     TRUE ~ species
   ))
 # Look at all unique hits
-unique(grassgroup$species) # 382
+unique(grassgroup$species) # 379
 
 # lump all unknown forbs for now
 forbfest <- grassgroup %>% 
   mutate(species = case_when(
     grepl("^forb_", species, ignore.case = TRUE) ~ "forb",
-    species %in% c("forb 1", "Forb", "forbe", "forbe_1", "forb_1", "forbe_unknown", "forb_unknown") ~ "forb",
+    species %in% c("forb 1", "Forb", "forbe", "forbe_1", "forbe_2", "forb_1", "forbe_unknown", "forb_unknown") ~ "forb",
     TRUE ~ species
   ))
 
 # Look at all unique hits
-unique(forbfest$species) # 325
+unique(forbfest$species) # 321
+
+# bar chart to look at frequency of unique hits
+forbfest %>% 
+  group_by(species) %>%
+  summarize (n = n()) %>%
+  mutate(total = sum(n),
+         freq = n / total) %>%
+  ggplot() +
+  geom_bar(mapping=aes(x=species, y=freq),stat="identity") +
+  xlab("Hit") +
+  ylab("Proportion") +
+  theme(axis.text.x=element_text(angle=90,hjust=1))
 
 # Consolidate life stages--actually maybe just for richness not for percent cover 
+allLifeStages <- forbfest %>% 
+  mutate(species = case_when(
+    grepl("^ABCO_", species, ignore.case = TRUE) ~ "ABCO",
+    grepl("^ABMA_", species, ignore.case = TRUE) ~ "ABMA",
+    grepl("^ACMA_", species, ignore.case = TRUE) ~ "ACMA",
+    grepl("^CADE_", species, ignore.case = TRUE) ~ "CADE",
+    grepl("^JUOC_", species, ignore.case = TRUE) ~ "JUOC",
+    grepl("^PILA_", species, ignore.case = TRUE) ~ "PILA",
+    grepl("^PIJE_", species, ignore.case = TRUE) ~ "PIJE",
+    grepl("^PIPO_", species, ignore.case = TRUE) ~ "PIPO",
+    grepl("^PSME_", species, ignore.case = TRUE) ~ "PSME",
+    grepl("^QUCH_", species, ignore.case = TRUE) ~ "QUCH",
+    grepl("^QUKE_", species, ignore.case = TRUE) ~ "QUKE",
+    grepl("^QUWI_", species, ignore.case = TRUE) ~ "QUWI",
+    TRUE ~ species
+  ))
 
+unique(allLifeStages$species) # 286
 
+# bar chart to look at frequency of unique hits
+allLifeStages %>% 
+  group_by(species) %>%
+  summarize (n = n()) %>%
+  mutate(total = sum(n),
+         freq = n / total) %>%
+  ggplot() +
+  geom_bar(mapping=aes(x=species, y=freq),stat="identity") +
+  xlab("Hit") +
+  ylab("Proportion") +
+  theme(axis.text.x=element_text(angle=90,hjust=1))
+
+# group by plot 
+allLifeStages %>% group_by(plotID)  %>% 
+summarize (n = n()) %>%
+  mutate(total = sum(n),
+         freq = n / total) %>%
+  ggplot() +
+  geom_bar(mapping=aes(x=plotID, y=freq),stat="identity") +
+  xlab("Hit") +
+  ylab("Proportion") +
+  theme(axis.text.x=element_text(angle=90,hjust=1))
