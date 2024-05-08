@@ -6,8 +6,7 @@
 library(dplyr)
 library(tidyr)
 
-# Ensure plotID is numeric
-allLifeStages$plotID <- as.numeric(allLifeStages$plotID)
+# new comment
 
 # Add leading zeros to plotID values for single-digit numbers
 allLifeStages$plotID <- sprintf("%02d", allLifeStages$plotID)
@@ -20,20 +19,28 @@ species_richness <- allLifeStages %>%
   complete(plotID = unique(allLifeStages$plotID)) %>%
   replace_na(list(richness = 0)) # fill in zero for any plot with no plant species e.g. only litter
 
-class(species_richness$plotID)
-
-# chat GPT version--trying to retain plots with zero plants
-
-allLifeStages %>%
-  group_by(plotID) %>%
-  summarise(unique_species_count = n_distinct(species)) %>%
-  complete(plotID = unique(allLifeStages$plotID)) %>%
-  replace_na(list(unique_species_count = 0)) %>%
-  filter(!(plotID %in% c("litter", "rock", "wood", "bareground")))
-
-
 # Next goal is to bind the plot-level species richness numbers with other plot data, so the richness list needs to be in the right order or maybe better to join on plotID
+
+# read in PRISM data from Joan
+prism <- read.csv("/Users/jennifercribbs/Documents/YOSE/Analysis/MultipleDisturbances/Data/CleanData/PRISMdata_YOSEonlyApril29_24.csv")
+
+# read in fire history data from Joan
+fire_history <- read.csv("/Users/jennifercribbs/Documents/YOSE/Analysis/MultipleDisturbances/Data/CleanData/LastFireThatBurnedApril29_24.csv")
 # bring in saved plot level data (or all tree level data with plot data)
 # combined_data <- cbind(plot_data, rich)
 
+# Join fire history and fire data
+climate_fire <- fire_history %>% left_join(prism, by = c("plotID" = "PlotID"))
 
+# Add leading zeros to plotID values for single-digit numbers
+# Note this converts to character data type
+climate_fire$plotID <- sprintf("%02d", climate_fire$plotID)
+
+# Join species richness results
+climFireRich <- left_join(climate_fire, species_richness)
+
+# NA values for richness should be zero bc all hits were substrate
+climFireRich$richness[is.na(climFireRich$richness)] <- 0
+
+# Write results to a CSV
+write_csv(climFireRich, "prismFireRichness.csv", na = "NA")
