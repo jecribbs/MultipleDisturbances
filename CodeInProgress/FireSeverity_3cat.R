@@ -1,4 +1,13 @@
-# adapted from https://ourcodingclub.github.io/tutorials/brms/
+
+# Fire Severity Script (Binary and 3 fire categories) ---------------------
+# Author: Jenny Cribbs
+# Date: 11 May 2024
+
+# Input: The initial for loop brings in data from the YPE_Data folder
+# Code Description: Creates  fire severity (unburned, low, medium, high) and fire binary (0/1) objects with a value representing fire severity (0-3) or fire presence/abscence (0/1) for each plot
+# Output: A csv file for fire severity and a csv file fire binary
+
+# --------------------------------------------------------------------
 
 # Load initial packages
 library(tidyverse)
