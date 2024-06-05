@@ -101,6 +101,5 @@ print(unique_plots)
 # remove row of NAs
 unique_plots <- unique_plots %>% filter(!is.na(plotID))
 
-# Save the cleaned data to a new CSV file
-write.csv(unique_plots, "/Users/jennifercribbs/Documents/YOSE/Analysis/MultipleDisturbances/Data/CleanData/unique_plots.csv", row.names = FALSE)
-
+# write a spatial file
+st_write(unique_plots, "/Users/jennifercribbs/Documents/YOSE/Analysis/MultipleDisturbances/Data/CleanData/UniquePlots")
