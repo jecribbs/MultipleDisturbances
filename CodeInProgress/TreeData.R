@@ -42,7 +42,6 @@ for (folder in folders) {
   }
 }
 
-
 # change data type to numeric 
 tree_list$DBH_cm <- as.numeric(tree_list$DBH_cm)
 tree_list$height_m <- as.numeric(tree_list$height_m)
@@ -51,7 +50,7 @@ tree_list$dOut_m <- as.numeric(tree_list$dOut_m)
 tree_list$dSideR_m <- as.numeric(tree_list$dSideR_m)
 tree_list$dSideL_m <- as.numeric(tree_list$dSideL_m)
 
-## summarizie data
+# summarizie data
 summary(tree_list)
 
 # visualize missing data
@@ -128,4 +127,21 @@ summary(tree_list)
 
 summary(aggr(tree_list))
 
+# check species field
+unique(tree_list$species)
+na_species_records <- tree_list %>% filter(is.na(species))
+print(na_species_records) # no NAs
+# transform species list to consolidate repeats
+tree_list <- tree_list %>%
+  mutate(species = case_when(
+    species == "PYGE" ~ "PIJE",
+    species %in% c("unknown", "UNK", "UNKNOWN", "Charcol", "Unknown") ~ "UNKNOWN",
+    TRUE ~ species
+  ))
+# re-check
+unique(tree_list$species) # list is cleaner
+na_species_records <- tree_list %>% filter(is.na(species))
+print(na_species_records) # still no NAs
+
+# write results to a csv
 write.csv(tree_list, "CleanTreeList.csv")
