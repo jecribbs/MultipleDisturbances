@@ -44,7 +44,6 @@ yose_pts_sf <- rbind(yose_pts_11, yose_pts_10)
 # Plot the data to check 
 plot(fire_sev_mtbs)
 points(yose_pts_sf, pch = 19, col = "red")
-text(yose_pts_sf, labels = yose_pts$plot_ID, cex = 0.5, pos = 3)
 
 # Extract the values from the CBI raster
 pred_CBI <- extract(fire_sev, yose_pts_sf, method = "bilinear")
@@ -60,4 +59,4 @@ plot(predicted_CBI ~ dnbr, data = plot_sev_data)
 
 
 # Save the data
-write.csv(plot_CBI_data, "./Data/plot_CBI_data.csv", row.names = FALSE)
+write.csv(plot_sev_data, "./Data/plot_sev_data.csv", row.names = FALSE)
