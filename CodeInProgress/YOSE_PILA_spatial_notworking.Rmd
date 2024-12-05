@@ -1,0 +1,33 @@
+---
+title: "Untitled"
+author: "Jenny Cribbs"
+date: "2023-04-06"
+output: html_document
+read me: Script is not working due to failure to install sf, tmap, terra, and any packages
+---
+
+```{r}
+library(sf)
+library(tmap)
+```
+
+```{r}
+# read in shapefile with sugar pine distribution from Yosemite NP
+pila <- st_read("/Users/jennifercribbs/Documents/YOSE/YOSE_SugarPine_Dist_20210324/YOSE_SugarPine_Dist_20210324.shp")
+# basic plot
+plot(pila)
+```
+```{r}
+# attempt to rasterize
+pila.rast <- terra::rast(pila) # no cell values
+pila.raster <- terra::rasterize(pila, pila.rast, fun = max)
+plot(pila.raster)
+```
+```{r}
+unique(pila$VEG_TYPE)
+```
+
+```{r}
+
+```
+

@@ -2,8 +2,9 @@
 ## ---------------------------
 ##
 ## Script name: Associated Tree Data Import Script
+## Will probably be step 6 or 7 after the understory scripts
 ##
-## Author: Dr. Joan Dudney and Jenny Cribbs
+## Author: Jenny Cribbs and Dr. Joan Dudney
 ##
 ## Date Created: 2024-06-15
 ##
@@ -11,10 +12,11 @@
 ## Email: jecribbs@ucdavis.edu
 ##
 ## ---------------------------
+## Input: Raw associated tree data field data (Treedata Google Sheet)
+## 
+## This script reads in the raw data using a for loop then checks NAs for each variable. I made corrections to missing values when possible based on a review of the original paper data sheets and entered data. In the case of clear typos (e.g. sign error for dSideL or entering the dSide in the incorrect column), I made the correction in the Google Sheet. For one plot all dSideL values were entered as positive, so I left this in the Google sheet, but changed these values to negative as part of this script. For other variables, I changed clear errors in the Google Sheet and documented them in the Data Documentation Word Doc. In the case one tree with estimated DBH where numbers were entered with ~, I left this in the entered data, but replaced with the numeric value in this script. For one blank dOut value, I again left the entered data alone, but replaced that value with an estimate since the two adjacent trees were close--full documentation for this imputation is in my notes and will go in the manuscript. 
 ##
-## Notes: 
-##   
-##
+## Output: Clean csv file for associated trees with only 2 NAs 
 ## ---------------------------
 
 # Load initial packages
@@ -42,7 +44,7 @@ for (folder in folders) {
   }
 }
 
-# change data type to numeric 
+# change data type to numeric--in the future do this after an NA check 
 tree_list$DBH_cm <- as.numeric(tree_list$DBH_cm)
 tree_list$height_m <- as.numeric(tree_list$height_m)
 tree_list$percentLive <- as.numeric(tree_list$percentLive)

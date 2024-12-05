@@ -8,10 +8,12 @@
 
 # Output: Plot-level data to join with kml files. 
 
-# Load initial packages
+# Load packages
 library(readxl)
 library(tidyverse)
 library(sf)
+library(dplyr)
+library(stringr)
 
 # Set the working directory if not done in step 1
 setwd("/Users/jennifercribbs/Documents/YOSE/Analysis/MultipleDisturbances/")
@@ -53,22 +55,17 @@ tree_list$trans_length <- as.numeric(tree_list$trans_length)
 tree_list$width <- as.numeric(tree_list$width)
 tree_list$slope <- as.numeric(tree_list$slope)
 tree_list$aspect <- as.numeric(tree_list$aspect)
-tree_list$DBH_cm <- as.numeric(tree_list$DBH_cm)
-tree_list$height_m <- as.numeric(tree_list$height_m)
-tree_list$flags <- as.numeric(tree_list$flags)
-tree_list$percentLive <- as.numeric(tree_list$percentLive)
-tree_list$activeBoleCanker <- as.numeric(tree_list$activeBoleCanker) 
-tree_list$inactiveBoleCanker <- as.numeric(tree_list$inactiveBoleCanker)
-tree_list$activeBranchCanker <- as.numeric(tree_list$activeBranchCanker)
-tree_list$inactiveBranchCanker <- as.numeric(tree_list$inactiveBranchCanker)
 
-# Load the packages
-library(dplyr)
-library(stringr)
+# Reduce to one point per plot
+unique_plots <- tree_list %>%
+  distinct(plotID, .keep_all = TRUE)
+
+# remove row of NAs
+unique_plots <- unique_plots %>% filter(!is.na(plotID))
 
 # Ensure Name and waypoint_beg columns are character type
 points2024$Name <- as.character(points2024$Name)
-tree_list$waypoint_beg <- as.character(tree_list$waypoint_beg)
+unique_plots$waypoint_beg <- as.character(unique_plots$waypoint_beg)
 
 # Function to add leading zeros based on device type
 add_leading_zeros <- function(name, device) {
@@ -84,27 +81,12 @@ add_leading_zeros <- function(name, device) {
 }
 
 # Apply the function to the gps_data data frame
-tree_list <- tree_list %>%
+unique_plots <- unique_plots %>%
   mutate(Name = mapply(add_leading_zeros, waypoint_beg, GPSdevice))
 
 # Perform a left join on the gps_data and waypoints data frames
-merged_point_data <- left_join(tree_list, points2024) %>% 
+unique_plots <- left_join(unique_plots, points2024) %>% 
   select(plotID, GPSdevice, waypoint_beg, plot_type, trans_length, width, slope, aspect, fireseverity_50m, ribes_50m, Name, plot_notes, geometry)
 
-# Reduce to one point per plot
-unique_plots <- merged_point_data %>%
-  distinct(plotID, .keep_all = TRUE)
-
-# View the cleaned data
-print(unique_plots)
-
-# remove row of NAs
-unique_plots <- unique_plots %>% filter(!is.na(plotID))
-
-# write a spatial file--can't write with empty geometry
+# write a spatial file
 st_write(unique_plots, "/Users/jennifercribbs/Documents/YOSE/Analysis/MultipleDisturbances/Data/CleanData/UniquePlots")
-
-
-# to separate plot data from PILA data
-# PILA tree-level
-select(treeNum, species, dOut_m, dSideR_m, dSideL_m, est_dOut_m, est_dSideR, est_dSideL, PILA_waypoint, PILA_UTM_E, PILA_UTM_N, estimatedAccuracy_PILA_f, DBH_cm, est_DBH_cm, height_m, est_height_m, pitchTubes, exitHoles, activeBranchCanker, inactiveBranchCanker, activeBoleCanker, inactiveBoleCanker, flags, DTOP, percentLive, resistance, damageCodes, fire_scar, notes)

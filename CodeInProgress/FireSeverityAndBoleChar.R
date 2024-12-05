@@ -1,13 +1,7 @@
+# adapted from https://ourcodingclub.github.io/tutorials/brms/
 
-# Fire Severity Script (Binary and 3 fire categories) ---------------------
-# Author: Jenny Cribbs
-# Date: 11 May 2024
-
-# Input: The initial for loop brings in data from the YPE_Data folder
-# Code Description: Creates  fire severity (unburned, low, medium, high) and fire binary (0/1) objects with a value representing fire severity (0-3) or fire presence/abscence (0/1) for each plot
-# Output: A csv file for fire severity and a csv file fire binary
-
-# --------------------------------------------------------------------
+# Set the working directory
+setwd("/Users/jennifercribbs/Documents/YOSE/Analysis/")
 
 # Load initial packages
 library(tidyverse)
@@ -15,7 +9,7 @@ library(readxl)
 library(VIM)
 
 # setting the directory for data extraction
-datadir <- "/Users/jennifercribbs/Documents/YOSE/Analysis/MultipleDisturbances/Data/RawData/YPE_Data"
+datadir <- "/Users/jennifercribbs/Documents/YOSE/Analysis/YPE_Data"
 
 # list all file names in the data directory
 files <- list.files(datadir)
@@ -35,7 +29,7 @@ for (folder in folders) {
                     pitchTubes, exitHoles, 
                     activeBranchCanker, inactiveBranchCanker, 
                     activeBoleCanker, inactiveBoleCanker, 
-                    DTOP, flags, percentLive, notes)
+                    DTOP, flags, percentLive, fire_scar)
     tree_list <- rbind(tree_list, xlsfile)
   }
 }
@@ -233,7 +227,6 @@ piladat <- piladat %>%
   mutate(firebinary = ifelse(plot_type == "highseverity" & fireseverity >= 1, 1, 0))
 
 summary(piladat)
-
 hist(piladat$firebinary)
 
 piladat %>% 
@@ -245,22 +238,45 @@ piladat %>%
   geom_bar(mapping=aes(x=firebinary, y=freq),stat="identity") +
   xlab("Plot Fire Severity Rating") +
   ylab("Proportion")
+# may want to filter out low severity or have 3 categories 
 
-# summarize plot-level data for fire versus no fire
-plot_firebinary <- piladat %>%
-  group_by(plotID) %>%
-  summarize(plot_firebinary = unique(firebinary))
+# Plan is to triangulate using on the ground, remote sensing, photos, and bole char
 
-print(plot_firebinary)
+# How many trees have bole char measurements?
+# Some plots Y/N some have measurements (but "N" = 0 for some of these)
+summary(piladat$fire_scar) # all character
+# bar chart
+piladat %>% 
+  group_by(fire_scar) %>%
+  summarize (n = n()) %>%
+  mutate(total = sum(n),
+         freq = n / total) %>%
+  ggplot() +
+  geom_bar(mapping=aes(x=fire_scar, y=freq),stat="identity") +
+  xlab("Bole Char Rating") +
+  ylab("Proportion")
+# most common N, followed by Y, NA, and < 1 
 
-# summarize plot-level data for fire versus no fire
-plot_fireseverity <- piladat %>%
-  group_by(plotID) %>%
-  summarize(plot_fireseverity = unique(fireseverity))
+# to use numeric values need to separate Y/N that has to stay character 
+# create a new column for char_num & change data type to numeric 
+piladat <- piladat %>% mutate(char_num = as.numeric(fire_scar))
+# look at the distribution of subset with numeric bole char
+hist(piladat$char_num) # lots of zeros
+summary(piladat) # max bole char 35m
 
-# check results
-print(plot_fireseverity)
+# 903 records are character, note all Ns should be 0s
+# Ns in unburned plots should be ok as 0s
+# Ns in plots with numeric bole char should be ok as 0s
+# Ns coded at 0s in plots with "Y" as fire scar may over represent 0s 
+# could recode all records to none, low, and high
 
-# write results to a csv file
-write.csv(plot_fireseverity, "plot_fireseverity.csv")
-write.csv(plot_firebinary, "plot_firebinary.csv")
+# Goal: convert Ns to 0s, Ys to 1s, x > 0 to 1s, leave numbers and NAs alone
+# All Ns should be 0s, so do this before coercion to numeric?
+# Alternatively filter out cases with both Ns and Ys to separate dataset?
+# hard to deal with both data types--consider going and manually changing Ns to 0s for plots with measured values not Ys
+# Could ask R to find plots with no Ys then replace N with 0s, but for plots with Ys leave Ns
+piladat <- piladat %>% mutate(char_binary = recode(fire_scar,
+                                                   "N" = 0))
+unique(piladat$plotID)
+                                
+  

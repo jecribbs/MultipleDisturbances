@@ -1,0 +1,178 @@
+---
+title: "Yosemite WPBR Prelim"
+author: "Jenny Cribbs"
+date: "2023-10-25"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Read in Data
+
+```{r}
+# install packages if necessary
+if (!require("librarian")) install.packages("librarian")
+librarian::shelf(tidyverse, readxl, viridis, patchwork)
+
+# set theme for tidyverse outputs
+theme_set(
+  theme_bw(base_size = 17)+
+    theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())
+)
+
+## set directories and create files object
+setwd("/Users/jennifercribbs/Documents/YOSE/Analysis/Junk/Test")
+files <- list.files()
+outdir <- "/Users/jennifercribbs/Documents/YOSE/Analysis/Junk/Test"
+
+## for loop to unzip files on your computer
+# for (file in files) {
+#   unzip(paste0(outdir,"/", file))
+# }
+
+
+## reading in all data
+# create folders object based on what is in out directory
+folders <- list.dirs(outdir)[-c(1,4)]
+# set up empty data frame 
+tree_list <- data.frame()
+# fill data frame with data from out dir
+for (folder in folders) {
+  newfiles = list.files(folder, pattern = "PILAdata")
+  for(file in newfiles) {
+    xlsfile <- read_excel(paste0(folder,"/",file)) %>% 
+      dplyr::select(plotID, plot_type, treeNum, DBH_cm, height_m, pitchTubes, exitHoles, activeBranchCanker, inactiveBranchCanker, activeBoleCanker, inactiveBoleCanker, DTOP, flags, percentLive)
+    tree_list <- rbind(tree_list, xlsfile)
+  }
+}
+
+
+## summarizing data
+
+# change data type to numeric 
+tree_list$activeBoleCanker <- as.numeric(tree_list$activeBoleCanker) 
+tree_list$inactiveBoleCanker <- as.numeric(tree_list$inactiveBoleCanker)
+tree_list$activeBranchCanker <- as.numeric(tree_list$activeBranchCanker)
+tree_list$inactiveBranchCanker <- as.numeric(tree_list$inactiveBranchCanker)
+#tree_list$plot_elevation_ft <- as.numeric(tree_list$plot_elevation_ft)
+
+# create new columns combining active and inactive bole and branch cankers 
+piladat <- tree_list %>% 
+  mutate(bole_canker = activeBoleCanker + inactiveBoleCanker,
+         branch_canker = activeBranchCanker + inactiveBranchCanker) %>% 
+  mutate(infected = ifelse(bole_canker|branch_canker>0,1,0)) %>% 
+  mutate(totalcankers = sum(bole_canker*5 + branch_canker)) # bole canker weighted 5 times
+```
+
+```{r}
+
+# create a new column for size class 
+piladat <- piladat %>% mutate(size_class = case_when (DBH_cm < 3 ~ "sapling", DBH_cm >= 3 & DBH_cm < 50 ~ "small", DBH_cm >= 50 & DBH_cm < 100 ~ "medium", DBH_cm >= 100 ~ "large"))
+
+#pila %>% summarize (n=n())
+
+# add up the total number of trees
+totTrees <- nrow(piladat)
+
+# calculate incidence of wpbr relative to all trees assessed 
+#IR = (sum(piladat$wpbr, na.rm = T)) / totTrees * 100
+
+# plot level incidence
+sum(unique(piladat$plotID), na.rm = T)
+# count(unique(pila$YPE_plot))
+
+# put unique values of plot into a vector
+plots <- unique(piladat$plotID)
+
+class(piladat$DBH_cm)
+piladat$DBH_cm <- as.numeric(piladat$DBH_cm)
+mean(piladat$DBH_cm, na.rm = TRUE)
+sd(piladat$DBH_cm, na.rm = TRUE)
+
+infected <- subset(piladat, piladat$infected == 1)
+uninfected <- subset(piladat, piladat$infected == 0)
+
+mean(infected$DBH_cm, na.rm = TRUE)
+sd(infected$DBH_cm, na.rm = TRUE)
+
+mean(uninfected$DBH_cm, na.rm = TRUE)
+sd(uninfected$DBH_cm, na.rm = TRUE)
+```
+## Severity according to Duriscoe & Duriscoe 2002
+```{r}
+
+piladat <- piladat %>% 
+  mutate (cs = 
+            case_when(activeBoleCanker > 0 | inactiveBoleCanker > 0 ~ 5, 
+                      activeBoleCanker == 0 & inactiveBoleCanker == 0 & activeBranchCanker == 0 & inactiveBranchCanker == 0 ~ 0,
+                      activeBranchCanker > 0 & activeBranchCanker <= 3 | inactiveBranchCanker > 0 & inactiveBranchCanker <= 3 ~ 1,
+                      activeBranchCanker > 3 & activeBranchCanker <= 9 | inactiveBranchCanker > 3 & inactiveBranchCanker <= 9 ~ 2,
+                      activeBranchCanker > 9 & activeBranchCanker <= 25 | inactiveBranchCanker > 9 & inactiveBranchCanker <= 25 ~ 3,
+                      activeBranchCanker > 25 | inactiveBranchCanker > 25 ~ 4)
+          )
+# distribution of canker severity
+hist(piladat$cs) # may want to adapt this to YOSE
+
+# calculate severity
+# 25in = 63.5cm  
+class(piladat$DBH_cm)
+piladat <- piladat %>% mutate(severity = 
+                          case_when(cs == 0 ~ 0, 
+                                cs > 0 & DBH_cm <= 63.5 ~ cs + (63.5 - as.numeric(DBH_cm) / 5),
+                                cs > 0 & DBH_cm > 63.5 ~ cs + ((63.5 - 63.5) / 5)
+                                    )
+                          )
+  
+hist(piladat$severity, xlab = "Severity", main = "Histogram of WPBR Severity")
+
+# maybe do not lump since there are so few trees with many cankers?
+# Should active branch cankers be weighted higher than inactive?
+
+piladat <- piladat %>% 
+  mutate (cs = 
+            case_when(activeBoleCanker > 0 | inactiveBoleCanker > 0 ~ 5, 
+                      activeBoleCanker == 0 & inactiveBoleCanker == 0 & activeBranchCanker == 0 & inactiveBranchCanker == 0 ~ 0,
+                      activeBranchCanker > 0 & activeBranchCanker <= 3 | inactiveBranchCanker > 0 & inactiveBranchCanker <= 3 ~ 1,
+                      activeBranchCanker > 3 & activeBranchCanker <= 9 | inactiveBranchCanker > 3 & inactiveBranchCanker <= 9 ~ 2
+                      )
+          )
+
+#severityHist <- hist(pila$severity, xlab = "Severity", main = "Histogram of WPBR Severity")
+
+#IRhist <- hist(summarydat$per_infected, xlab = "WPBR Extent", "Historgram of WPBR Extent")
+
+#severityHist + IRhist
+
+# Total Cankers rather than severity
+#pila$wpbr <- pila %>% mutate(as.factor(wpbr))
+# pila <- pila %>% factor(size_class, levels = levels(size_class)[1,2,3,4,5], ordered = TRUE) 
+```
+
+```{r}
+ggplot(piladat, aes(x=size_class, y=cs, color = size_class)) + geom_violin() +
+  geom_boxplot(width=0.1) + theme_minimal() +
+  ggtitle("WPBR Infection Rate is Highest for Small Trees") + 
+  xlab("Tree Size Class") + ylab("Total Canker Score") +
+  scale_x_discrete(limits=c("sapling", "small", "medium", "large"))     
+
+ggplot(piladat, aes(x=plot_type, y=infected, color = plot_type)) + geom_boxplot() +
+  geom_boxplot(width=0.1) + theme_minimal() +
+  ggtitle("WPBR Infection Rate is Higher for Small Trees") + 
+  xlab("Tree Size Class") + ylab("Total Canker Score") +
+  scale_x_discrete(limits=c("sapling", "small", "medium", "large")) 
+
+boxplot(x = piladat$infected, y = piladat$DBH_cm)
+
+piladat$infected <- as.factor(piladat$infected)
+
+
+piladat$DBH_cm <- as.numeric(piladat$DBH_cm)
+#uninfected$DBH_cm <- as.numeric(uninfected$DBH_cm)
+infectedBox <- boxplot(piladat$infected, piladat$DBH_cm)
+
+piladat %>% group_by(infected) %>%  summarise (avg_size = mean(DBH_cm), na.omit=TRUE)
+
+```
+

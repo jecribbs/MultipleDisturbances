@@ -1,0 +1,40 @@
+---
+title: "YOSEprelim"
+author: "Jenny Cribbs"
+date: "2023-06-29"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+# package circular may be helpful for dealing with circular aspect data 
+# load tidyverse package
+library(tidyverse)
+
+# read in UCD PILA and trees data from csv files
+ype2PILA <- read_csv("/Users/jennifercribbs/Documents/YOSE/YPE_2_PILA.csv")
+ype2Trees <- read_csv("/Users/jennifercribbs/Documents/YOSE/YPE_2_Trees.csv")
+
+```
+
+```{r}
+# run the following three lines together to look at relationship between PILA DBH and height
+# create a scatterplot of DBH and height
+plot(ype2PILA$DBH_cm, ype2PILA$height_m, xlab = "DBH (cm)", ylab = "Height (m)")
+# fit a linear regression line
+lm(ype2PILA$height_m ~ ype2PILA$DBH_cm) # intercept is too large--too few saplings in this prelim sample
+# plot line
+abline(lm(ype2PILA$height_m ~ ype2PILA$DBH_cm))
+```
+```{r}
+# run the following three lines together to look at relationship between other trees DBH and height
+# create a scatterplot of DBH and height
+plot(ype2Trees$DBH_cm, ype2Trees$height_m, xlab = "DBH (cm)", ylab = "Height (m)")
+# fit a linear regression line
+lm(ype2Trees$height_m ~ ype2Trees$DBH_cm)
+# plot line
+abline(lm(ype2Trees$height_m ~ ype2Trees$DBH_cm))
+```

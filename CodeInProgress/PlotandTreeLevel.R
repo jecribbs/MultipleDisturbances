@@ -1,13 +1,13 @@
+## March 3rd 2024
+## Jenny Cribbs
+## Code brings in data from YOSE database and plot level prism data from csv
+## Averages fire severity variable
+## Runs PCA for plot and prism variables
+## Product: Sierra Nevada Science Symposium Supplemental Figures
 
-# Fire Severity Script (Binary and 3 fire categories) ---------------------
-# Author: Jenny Cribbs
-# Date: 11 May 2024
 
-# Input: The initial for loop brings in data from the YPE_Data folder
-# Code Description: Creates  fire severity (unburned, low, medium, high) and fire binary (0/1) objects with a value representing fire severity (0-3) or fire presence/abscence (0/1) for each plot
-# Output: A csv file for fire severity and a csv file fire binary
-
-# --------------------------------------------------------------------
+# Set the working directory
+setwd("/Users/jennifercribbs/Documents/YOSE/Analysis/MultipleDisturbances/Data/RawData/YPE_Data")
 
 # Load initial packages
 library(tidyverse)
@@ -22,20 +22,20 @@ files <- list.files(datadir)
 # provide path for files in datadir
 folders <- list.dirs(datadir)[-c(1,4)]
 # create a blank dataframe 
-tree_list <- data.frame()
+pila_list <- data.frame()
 # bring in selected variables from excel files in datadir
 for (folder in folders) {
   newfiles = list.files(folder, pattern = "PILAdata") # PILA data only
   for(file in newfiles) {
     xlsfile <- read_excel(paste0(folder,"/",file)) %>% 
-      dplyr::select(plotID, trans_length, width, slope, aspect, plot_type,
+      dplyr::select(plotID, trans_length, width, plot_elevation_ft, slope, aspect, plot_type,
                     fireseverity_50m, fireseverity_100m, fireseverity_150m, fireseverity_200m, 
                     ribes_50m, ribes_100m, ribes_150m, ribes_200m, 
                     DBH_cm, height_m, 
                     pitchTubes, exitHoles, 
                     activeBranchCanker, inactiveBranchCanker, 
                     activeBoleCanker, inactiveBoleCanker, 
-                    DTOP, flags, percentLive, notes)
+                    DTOP, flags, percentLive)
     tree_list <- rbind(tree_list, xlsfile)
   }
 }
@@ -51,6 +51,7 @@ summary(aggr(tree_list))
 # change data type to numeric 
 tree_list$trans_length <- as.numeric(tree_list$trans_length)
 tree_list$width <- as.numeric(tree_list$width)
+tree_list$plot_elevation_ft <- as.numeric(tree_list$plot_elevation_ft)
 tree_list$slope <- as.numeric(tree_list$slope)
 tree_list$aspect <- as.numeric(tree_list$aspect)
 tree_list$DBH_cm <- as.numeric(tree_list$DBH_cm)
@@ -92,13 +93,13 @@ piladat %>%
   ylab("Proportion")
 
 # code variable as a factor and combine some categories
-# Mixed should not be higher than high, so recode mixed
 # Recode fireseverity_50m
 piladat <- piladat %>% 
   mutate(fireseverity_50m = recode(fireseverity_50m,
                                    "N" = 0,
-                                   "unburned" = 0,
                                    "None" = 0,
+                                   "NONE" = 0,
+                                   "unburned" = 0,
                                    "low" = 1,
                                    "low_mod" = 2,
                                    "mod" = 2,
@@ -112,8 +113,9 @@ piladat <- piladat %>%
 piladat <- piladat %>%
   mutate(fireseverity_100m = recode(fireseverity_100m,
                                     "N" = 0,
-                                    "unburned" = 0,
                                     "None" = 0,
+                                    "NONE" = 0,
+                                    "unburned" = 0,
                                     "low" = 1,
                                     "low_mod" = 2,
                                     "mod" = 2,
@@ -123,33 +125,34 @@ piladat <- piladat %>%
                                     "high/mixed" = 3,
                                     "mixed" = 2))
 # Recode fireseverity_150m
-piladat <- piladat %>% 
-  mutate(fireseverity_150m = recode(fireseverity_150m,
-                                    "N" = 0,
-                                    "None" = 0,
-                                    "unburned" = 0,
-                                    "low" = 1,
-                                    "low_mod" = 2,
-                                    "mod" = 2,
-                                    "moderate" = 2,
-                                    "mod_high" = 3,
-                                    "high" = 3,
-                                    "high/mixed" = 3,
-                                    "mixed" = 2))
+piladat <- piladat %>% mutate(fireseverity_150m = recode(fireseverity_150m,
+                                  "N" = 0,
+                                  "None" = 0,
+                                  "NONE" = 0,
+                                  "unburned" = 0,
+                                  "low" = 1,
+                                  "low_mod" = 2,
+                                  "mod" = 2,
+                                  "moderate" = 2,
+                                  "mod_high" = 3,
+                                  "high" = 3,
+                                  "high/mixed" = 3,
+                                  "mixed" = 2))                        
 # Recode fireseverity_200m
-piladat <- piladat %>% 
-  mutate(fireseverity_200m = recode(fireseverity_200m,
-                                    "N" = 0,
-                                    "None" = 0,
-                                    "unburned" = 0,
-                                    "low" = 1,
-                                    "low_mod" = 2,
-                                    "mod" = 2,
-                                    "moderate" = 2,
-                                    "mod_high" = 3,
-                                    "high" = 3,
-                                    "high/mixed" = 3,
-                                    "mixed" = 2))
+piladat <- piladat %>% mutate(fireseverity_200m = recode(fireseverity_200m,
+                                  "N" = 0,
+                                  "None" = 0,
+                                  "NONE" = 0,
+                                  "unburned" = 0,
+                                  "low" = 1,
+                                  "low_mod" = 2,
+                                  "mod" = 2,
+                                  "moderate" = 2,
+                                  "mod_high" = 3,
+                                  "high" = 3,
+                                  "high/mixed" = 3,
+                                  "mixed" = 2))
+
 # bar chart to look at fire severity ratings again
 
 library(dplyr)
@@ -223,44 +226,115 @@ piladat %>%
   xlab("Plot Fire Severity Rating") +
   ylab("Proportion")
 
-# consider rounding to maintain the 3 categories 
+# create waypoints for export for prism data extraction 
+waypoints <- read_csv("/Users/jennifercribbs/Documents/YOSE/Plot_Waypoints_UTMzone.csv")
+plotlist <- unique(piladat$plotID)
+plotlist %>% arrange(plotID)
+waypoints$plotID
 
-# Recode as fire or no fire
-# Revist this later to combine with bole char data, plot photos, and remote sensing data
-# Fire = plot_type highseverity AND fireseverity is high, moderate, or mixed (not unburned or low)
-# starting with just the 50m on the ground rating due to NAs (but still has 55 NAs)
-piladat <- piladat %>% 
-  mutate(firebinary = ifelse(plot_type == "highseverity" & fireseverity >= 1, 1, 0))
 
-summary(piladat)
+# bring in PRISM data
+prism <- read_csv("/Users/jennifercribbs/Downloads/updatedPRISMdata.csv")
 
-hist(piladat$firebinary)
-
-piladat %>% 
-  group_by(firebinary) %>%
-  summarize (n = n()) %>%
-  mutate(total = sum(n),
-         freq = n / total) %>%
-  ggplot() +
-  geom_bar(mapping=aes(x=firebinary, y=freq),stat="identity") +
-  xlab("Plot Fire Severity Rating") +
-  ylab("Proportion")
-
-# summarize plot-level data for fire versus no fire
-plot_firebinary <- piladat %>%
+# aggregate average fire severity at the plot level
+average_fire <- piladat %>%
   group_by(plotID) %>%
-  summarize(plot_firebinary = unique(firebinary))
+  summarize(avg_fire_severity = mean(fireseverity)) %>% 
+  ungroup()
 
-print(plot_firebinary)
+# join tree data and prism data on plotID 
+climate_fire <- prism %>% left_join(average_fire, by = c("PlotID" = "plotID"))
 
-# summarize plot-level data for fire versus no fire
-plot_fireseverity <- piladat %>%
+# look at the distribution of climate variables 
+hist(climate_fire$vpdmax)
+hist(climate_fire$tmean)
+hist(climate_fire$ppt)
+hist(climate_fire$avg_fire_severity)
+
+# aggregate elevation, slope, aspect at the plot level
+average_plotVars <- piladat %>%
   group_by(plotID) %>%
-  summarize(plot_fireseverity = unique(fireseverity))
+  summarize(elevation = mean(plot_elevation_ft),
+            aspect = mean(aspect),
+            slope = mean(slope)) %>% 
+  ungroup()
 
-# check results
-print(plot_fireseverity)
+climate_fire <- climate_fire %>% left_join(average_plotVars, by = c("PlotID" = "plotID"))
 
-# write results to a csv file
-write.csv(plot_fireseverity, "plot_fireseverity.csv")
-write.csv(plot_firebinary, "plot_firebinary.csv")
+# look at the distribution of the plot variables
+climate_fire$elevation <- as.numeric(climate_fire$elevation)
+hist(climate_fire$elevation)
+hist(climate_fire$slope)
+hist(climate_fire$aspect)
+
+# write.csv(climate_fire, "Climate.Fire.csv")
+# read back in after manual corrections for missing elevation, slope, and aspect
+climate_fire <- read_csv("Climate.Fire.csv")
+
+
+# aspect is circular, so convert to two linear variables
+# Convert aspect to radians
+climate_fire$aspect_rad <- (climate_fire$aspect / 180) * pi
+
+# Create new linear variables for sine and cosine of aspect
+climate_fire$aspect_sin <- sin(climate_fire$aspect_rad)
+climate_fire$aspect_cos <- cos(climate_fire$aspect_rad)
+
+# standardize all variables and run PCA
+pcaplot <- prcomp(~ vpdmax + tmean + ppt + elevation + aspect_sin + aspect_cos + slope + avg_fire_severity,
+                  center = TRUE, scale = TRUE, data = climate_fire, na.action = na.exclude)
+
+class(pcaplot)
+summary(pcaplot) # PC1 explains 42% of the variation PC 1-4 explains 83%
+#the loadings of the first component
+sort(pcaplot$rotation[,1]) # negative for ppt, elevation, slope; positive for tmean, vpdmax
+sort(pcaplot$rotation[,2]) # negative for aspect and elevation; positive for ppt and fire severity
+sort(pcaplot$rotation[,3]) # strongly negative for slope
+sort(pcaplot$rotation[,4]) # fire severity, elevation, aspect 
+
+# Make a table
+library(flextable)
+
+# Extract loadings 
+loadings <- as.data.frame(pcaplot$rotation[,1:8])
+# ensure that original variable names display in table
+loadings <- cbind(Variables = rownames(pcaplot$rotation)[1:8], loadings)
+# Convert to flextable
+ft <- flextable(loadings)
+# Remove row names
+row.names(loadings) <- NULL
+# Print the flextable
+ft
+
+
+
+
+#install.packages("factoextra")
+library(factoextra)
+# Visualize PC1 and PC2
+fviz_pca_var(pcaplot, axes = c(1, 2), col.var = "steelblue", title = "Variables - PCA 1 and PCA 2")
+fviz_pca_var(pcaplot, axes = c(1, 3), col.var = "orangered", title = "Variables - PCA 1 and PCA 3")
+fviz_pca_var(pcaplot, axes = c(2, 3), col.var = "forestgreen", title = "Variables - PCA 2 and PCA 3")
+
+# visualize in 3D
+#install.packages("plotly")
+library(plotly)
+
+# Extract PCA results for the first five components
+pc <- as.data.frame(pcaplot$x[,1:5])
+# view in table
+pc %>% flextable()
+
+# Create a 3D scatterplot--cool, but what does it mean???
+plot_ly(data = pc, x = ~PC1, y = ~PC2, z = ~PC3, type = "scatter3d", mode = "markers", marker = list(color = "steelblue"))
+
+# Selecting PC components
+# look for an elbow in the scree plot
+fviz_eig(pcaplot) # no clear elbow--keep PC 1 and 2?
+# Kaiser criterion 
+eigen <- get_eigenvalue(pcaplot) # PC 1, 2, 3 > 1, but three just barely
+# view in table
+eigen %>% flextable()
+# Need to retain 5 components to explain over 80% of the variation
+
+
