@@ -1,0 +1,29 @@
+# macOS system files
+.DS_Store
+
+# R-related temporary files
+*.Rproj.user
+*.Rhistory
+*.RData
+*.Ruserdata
+
+# Python-related files (if applicable)
+__pycache__/
+*.py[cod]
+
+# Outputs and scratch files
+*.csv
+*.tsv
+*.log
+*.tmp
+*.out
+
+# Folders for intermediate or scratch work
+scratch/
+sandbox/
+temp/
+output/
+
+# Files to exclude but keep locally
+!README.md  # Example: ensures README is always tracked
+
