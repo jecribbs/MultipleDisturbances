@@ -74,7 +74,7 @@ pila_list <- pila_list %>%
 
 # add GBIF columns to match occurrence tab template
 pila_list <- pila_list %>% 
-  mutate(occurrenceID = paste(eventID, treeNum, sep = "_"), 
+  mutate(occurrenceID = paste(occurrenceID = paste("E", eventID, "-", "PILA", treeNum, sep = "")), 
          basisOfRecord = "HumanObservation",
          taxonID = "PILA",
          scientificName = "Pinus lambertiana (Douglas, 1827)",
@@ -110,7 +110,19 @@ pila_list <- pila_list %>%
 
 # select columns for GBIF occurrence tab
 cleanPILAdata <- pila_list %>% 
-  select(occurrenceID, eventID, basisOfRecord, taxonID, scientificName, recordedBy, occurrenceStatus, individualCount, organismQuantity, organismQuantityType, publicDisplay, dataAccess, lifeStage, sex, reproductiveCondition, behavior, covariateSample, preparations, identifiedBy, dateIdentified, identificationReferences, identificationRemarks, identificationQualifier, identificationVerificationStatus, occurrenceRemarks, materialSampleID, recordNumber, organismRemarks, identificationID, diameter, height, pitchTubes, exitHoles, activeBranchCanker, inactiveBranchCanker, activeBoleCanker, inactiveBoleCanker, deadTop, percentLive, boleChar)
+  select(occurrenceID, eventID, basisOfRecord, taxonID, scientificName, 
+         recordedBy, occurrenceStatus, individualCount, 
+         organismQuantity, organismQuantityType, publicDisplay, dataAccess, 
+         lifeStage, sex, reproductiveCondition, behavior, 
+         covariateSample, preparations, identifiedBy, dateIdentified, 
+         identificationReferences, identificationRemarks, 
+         identificationQualifier, identificationVerificationStatus, 
+         occurrenceRemarks, materialSampleID, recordNumber, 
+         organismRemarks, identificationID, 
+         diameter, height, pitchTubes, exitHoles, 
+         activeBranchCanker, inactiveBranchCanker, 
+         activeBoleCanker, inactiveBoleCanker, 
+         deadTop, percentLive, boleChar, damageCodes)
 
 # Part3: YOSE PILA Data Import -------------------------
 
@@ -240,7 +252,7 @@ treeOccurrenceData <- tree_list %>%
 
 # add GBIF columns to match occurrence tab template
 treeOccurrenceData <- treeOccurrenceData %>% 
-  mutate(occurrenceID = paste("E", eventID, "-", "Tree", treeNum, sep = ""),  #may need to update occurrenceID so the PILA and Trees don't overlap--> adding "Tree" for now
+  mutate(occurrenceID = paste("E", eventID, "-", "Tree", treeNum, sep = ""),
          basisOfRecord = "HumanObservation",
          scientificName = case_when(
            taxonID == "PIJE" ~ "Pinus jeffreyi (Balf. 1853)", # check re abbreviations
@@ -307,7 +319,7 @@ gbifTreeOccurrence <- treeOccurrenceData %>%
          diameter, height, pitchTubes, exitHoles, 
          activeBranchCanker, inactiveBranchCanker, 
          activeBoleCanker, inactiveBoleCanker, 
-         deadTop, percentLive, boleChar) # add damage codes
+         deadTop, percentLive, boleChar, damageCodes) 
 
 # Part8: Combine PILA and Tree Data -------------------------
 
