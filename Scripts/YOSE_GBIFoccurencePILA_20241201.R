@@ -1,4 +1,4 @@
-# GBIF: Occurence Tab
+# GBIF: PILA Occurence Tab
 # Authors: Jenny Cribbs
 # Date: 09 September 2024
 
