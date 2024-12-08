@@ -243,13 +243,13 @@ treeOccurrenceData <- treeOccurrenceData %>%
   mutate(occurrenceID = paste("E", eventID, "-", "Tree", treeNum, sep = ""),  #may need to update occurrenceID so the PILA and Trees don't overlap--> adding "Tree" for now
          basisOfRecord = "HumanObservation",
          scientificName = case_when(
-           taxonID == "PIJE" ~ "Pinus jeffreyi (Balf. 1853)",
-           taxonID == "ABCO" ~ "Abies concolor (Lindley, 1861)",
-           taxonID == "ABMA" ~ "Abies magnifica",
-           taxonID == "CADE" ~ "Calocedrus decurrens",
+           taxonID == "PIJE" ~ "Pinus jeffreyi (Balf. 1853)", # check re abbreviations
+           taxonID == "ABCO" ~ "Abies concolor (Lindley, 1861)", # (Gordon & Glend.) Lindl. ex Hildebr., 1861
+           taxonID == "ABMA" ~ "Abies magnifica (A.Murray bis, 1863)", # check with NPS to see if this should just be Murray, 1863
+           taxonID == "CADE" ~ "Calocedrus decurrens ((Torr.) Florin, 1956)", # (Torr.) Florin, 1956 is most recent Torr., 1853 is original
            taxonID == "PIPO" ~ "Pinus ponderosa (Douglas, 1836)",
            taxonID == "QUKE" ~ "Quercus kelloggii (Newberry, 1857)",
-           taxonID == "PSME" ~ "Pseudotsuga menziesii",
+           taxonID == "PSME" ~ "Pseudotsuga menziesii (Lipscomb, 1993)", # this doesn't seem right, but on NCBI??? 
            taxonID == "UNKNOWN" ~ "Pinales", # check that we're not mislabeling any oaks etc. 
            taxonID == "QUCH" ~ "Quercus chrysolepis",
            taxonID == "QUWI" ~ "Quercus wislizeni",
@@ -286,18 +286,32 @@ treeOccurrenceData <- treeOccurrenceData %>%
          exitHoles = "",
          activeBranchCanker = "",
          inactiveBranchCanker = "",
+         activeBoleCanker = "",
+         inactiveBoleCanker = "",
          deadTop = if_else((str_detect(damageCodes, "\\bDTOP\\b") | (str_detect(damageCodes, "\\bSD\\b"))), "Y", "N", missing = "N"),
          boleChar = if_else(str_detect(damageCodes, "\\bFIRE\\b"), "Y", "N", missing = "N"))
 
 
 # select columns for GBIF occurrence tab
 gbifTreeOccurrence <- treeOccurrenceData %>% 
-  select(occurrenceID, eventID, basisOfRecord, taxonID, scientificName, recordedBy, occurrenceStatus, individualCount, organismQuantity, organismQuantityType, publicDisplay, dataAccess, lifeStage, sex, reproductiveCondition, behavior, covariateSample, preparations, identifiedBy, dateIdentified, identificationReferences, identificationRemarks, identificationQualifier, identificationVerificationStatus, occurrenceRemarks, materialSampleID, recordNumber, organismRemarks, identificationID, diameter, height, 
-         pitchTubes, exitHoles, activeBranchCanker, inactiveBranchCanker, damageCodes, deadTop, percentLive, boleChar)
+  select(occurrenceID, eventID, 
+         basisOfRecord, taxonID, scientificName, recordedBy, 
+         occurrenceStatus, individualCount, organismQuantity, 
+         organismQuantityType, publicDisplay, dataAccess, 
+         lifeStage, sex, reproductiveCondition, behavior, 
+         covariateSample, preparations, identifiedBy, dateIdentified, 
+         identificationReferences, identificationRemarks, 
+         identificationQualifier, identificationVerificationStatus, 
+         occurrenceRemarks, materialSampleID, 
+         recordNumber, organismRemarks, identificationID, 
+         diameter, height, pitchTubes, exitHoles, 
+         activeBranchCanker, inactiveBranchCanker, 
+         activeBoleCanker, inactiveBoleCanker, 
+         deadTop, percentLive, boleChar) # add damage codes
 
-# PartX: Combine PILA and Tree Data -------------------------
+# Part8: Combine PILA and Tree Data -------------------------
 
-rbind (cleanPILAdata, gbifTreeOccurrence)
+test <- rbind (cleanPILAdata, gbifTreeOccurrence)
 # save as a csv file in the working directory
 write.csv(gbifTreeOccurrence, "YOSE_GBIFoccurrence.csv", row.names = FALSE) # don't save first column
 
