@@ -311,9 +311,9 @@ gbifTreeOccurrence <- treeOccurrenceData %>%
 
 # Part8: Combine PILA and Tree Data -------------------------
 
-test <- rbind (cleanPILAdata, gbifTreeOccurrence)
+gbifOccurrence <- rbind (cleanPILAdata, gbifTreeOccurrence)
 # save as a csv file in the working directory
-write.csv(gbifTreeOccurrence, "YOSE_GBIFoccurrence.csv", row.names = FALSE) # don't save first column
+write.csv(gbifOccurrence, "YOSE_GBIFoccurrence.csv", row.names = FALSE) # don't save first column
 
 
 
