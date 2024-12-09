@@ -1,7 +1,7 @@
 # GBIF: Occurence Tab for PILA and Associated Trees
 # Authors: Jenny Cribbs, Tazlina Dentinger
 # Date created: 06 December 2024
-# Updated: 
+# Updated: 09 December 2024, TMD
 
 # Overall Input: Read in PILA and Associated Tree data from Excel files downloaded from Google Sheets using for loop
 # Code Description: clean data with a row for each tree with a unique occurrence ID and columns matching GBIF columns, so the output can be pasted into NPS template occurrence tab
