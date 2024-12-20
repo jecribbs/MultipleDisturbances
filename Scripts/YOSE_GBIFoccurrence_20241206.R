@@ -19,7 +19,7 @@ setwd("/Users/jennifercribbs/Documents/YOSE/Analysis/MultipleDisturbances/")
 
 # Bring in the PILA data for each plot in the project folder from Google Sheets
 # setting the directory for data extraction--change to your local data directory
-datadir <- "/Users/jennifercribbs/Documents/YOSE/Analysis/MultipleDisturbances/Data/RawData/YPE_Data"
+datadir <- "/Users/jennifercribbs/Documents/YOSE/Analysis/MultipleDisturbances/dataSandbox/RawData/YPE_Data"
 
 # provide path for files in datadir
 folders <- list.dirs(datadir, full.names = TRUE)[-c(1,4)] # Ensure full path names are used
@@ -87,7 +87,7 @@ pila_list <- pila_list %>%
          dataAccess = "",
          lifeStage = "",
          sex = "",
-         reproductiveCondition = if_else(str_detect(notes, "\\bcone(s)?\\b"), "cone-bearing", "no cones observed"),
+         reproductiveCondition = "",
          behavior = "",
          covariateSample = "",
          preparations = "",
@@ -105,7 +105,6 @@ pila_list <- pila_list %>%
          recordNumber = "",
          organismRemarks = "",
          identificationID = "")
-
 
 
 # select columns for GBIF occurrence tab
@@ -325,6 +324,17 @@ gbifTreeOccurrence <- treeOccurrenceData %>%
 
 gbifOccurrence <- rbind (cleanPILAdata, gbifTreeOccurrence)
 # save as a csv file in the working directory
+
+# populate the reproductiveCondition column for all occurrences
+gbifOccurrence <- gbifOccurrence %>%
+  mutate(
+    reproductiveCondition = case_when(
+      str_detect(occurrenceRemarks, "(?i)no\\s+cone[s]?") ~ "no cones observed",
+      str_detect(occurrenceRemarks, "(?i)cone[s]?") ~ "cone-bearing",
+      TRUE ~ NA_character_
+    )
+  )
+
 write.csv(gbifOccurrence, "YOSE_GBIFoccurrence.csv", row.names = FALSE) # don't save first column
 
 
