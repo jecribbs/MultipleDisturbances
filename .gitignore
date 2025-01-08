@@ -27,3 +27,4 @@ output/
 # Files to exclude but keep locally
 !README.md  # Example: ensures README is always tracked
 
+.Rproj.user
