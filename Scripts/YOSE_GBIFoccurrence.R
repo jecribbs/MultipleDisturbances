@@ -1,7 +1,7 @@
 # GBIF: Occurence Tab for PILA and Associated Trees
 # Authors: Jenny Cribbs, Tazlina Dentinger
 # Date created: 06 December 2024
-# Updated: 14 January 2025, TMD
+# Updated: 21 January 2025, TMD
 
 # Overall Input: Read in PILA and Associated Tree data from Excel files downloaded from Google Sheets using for loop
 # Code Description: clean data with a row for each tree with a unique occurrence ID and columns matching GBIF columns, so the output can be pasted into NPS template occurrence tab
@@ -13,6 +13,7 @@
 if (!require("librarian")) install.packages("librarian")
 librarian::shelf(tidyverse, readxl, viridis, patchwork)
 library(VIM)
+library(dplyr)
 
 # Set the working directory
 #setwd("/Users/jennifercribbs/Documents/YOSE/Analysis/MultipleDisturbances/")
@@ -50,7 +51,10 @@ for (folder in folders) {
                     pitchTubes, exitHoles,
                     activeBranchCanker, inactiveBranchCanker,
                     activeBoleCanker, inactiveBoleCanker, flags, DTOP,
-                    percentLive, fire_scar, resistance, damageCodes, notes 
+                    percentLive, fire_scar, resistance, damageCodes, notes, 
+                    PILA_UTM_E, PILA_UTM_N, estimatedAccuracy_PILA_ft,
+                    dOut_m, dSideR_m, dSideL_m,
+                    est_dOut_m, est_dSideR, est_dSideL
       )
     pila_list <- rbind(pila_list, xlsfile)
     
@@ -73,6 +77,128 @@ pila_list <- pila_list %>%
          height = height_m,
          deadTop = DTOP, 
          boleChar = fire_scar)
+
+##DAMAGE CODES: scan notes for damage codes and indicators thereof, create new columns for each code, then paste into the damageCodes column in tree_list
+
+# check damage codes field
+unique(pila_list$damageCodes)
+
+# make damage codes uppercase
+pila_list <- pila_list %>% 
+  mutate(damageCodes = toupper(damageCodes))
+
+# transform damage codes list to and standardize break char and damage codes to FHW codes
+pila_list$damageCodes <- gsub('BROKE', 'BROK',
+                              gsub('BTOP', 'BROK', # change to BROK after verifying BTOPs
+                                   gsub('_', '|', 
+                                        gsub(', ', '|', 
+                                             gsub('CROOK', 'CROK', pila_list$damageCodes)))))
+
+#create empty columns for damage codes that need adding or changing 
+pila_list <- mutate(pila_list,
+         birdDamage = "", brokDamage = "",   crokDamage = "",
+         bromDamage = "", fireDamage = "",   forkDamage = "",
+         mammDamage = "", sdDamage = "",     sparDamage = "", twinDamage = "")
+
+#add damage codes that are not accounted for in the column based on the notes
+pila_list <- pila_list %>% 
+  mutate(birdDamage = if_else(str_detect(notes, "(?i)sap\\s+sucker") | str_detect(notes, "(?i)sucker") | (str_detect(notes, "(?i)wp") & !str_detect(notes, "WPBR")) | str_detect(notes, "(?i)w\\s+p") | str_detect(notes, "(?i)bird") | str_detect(notes, "(?i)peck"), "BIRD", "", missing = ""),
+    brokDamage = if_else(str_detect(notes, "(?i)brok") | str_detect(notes, "(?i)btop"), "BROK", "", missing = ""),
+    bromDamage = if_else(str_detect(notes, "(?i)broom"), "BROM", "", missing = ""),
+    crokDamage = if_else(str_detect(notes, "(?i)crok") | str_detect(notes, "(?i)crook"), "CROK", "", missing = ""),
+    fireDamage = if_else(str_detect(notes, "(?i)char") | str_detect(notes, "(?i)torched") | str_detect(notes, "(?i)crisp") | str_detect(notes, "(?i)fire") | str_detect(notes, "(?i)burn") | str_detect(notes, "(?i)fs") | str_detect(notes, "(?i)cat\\s+face"), "FIRE", "", missing = ""),
+    forkDamage = if_else(str_detect(notes, "(?i)fork"), "FORK", "", missing = ""), #why so few of these?
+    mammDamage = if_else(str_detect(notes, "(?i)rodent") | str_detect(notes, "(?i)bear" ), "MAMM", "", missing = ""),
+    sdDamage = if_else(str_detect(notes, "(?i)sd"), "SD", "", missing = ""),
+    sparDamage = if_else(str_detect(notes, "(?i)spars") | str_detect(notes, "(?i) thin") | str_detect(notes, "(?i)thin ") | str_detect(notes, "(?i)thin,"), "SPAR", "", missing = ""),
+    twinDamage = if_else(str_detect(notes, "(?i)twin"), "TWIN", "", missing = "")
+     )
+
+#temporary object to check the damage columns
+#pilaDMG <- filter(pila_list, twinDamage == "TWIN") %>% select(eventID, treeNum, species, percentLive, damageCodes, notes, twinDamage)
+
+#PILA1826 - twin canopy???
+
+#remove false positives in damage column, e.g. "offshoot", "no fire scar", "yellow pitch"
+pila_list <- pila_list %>%
+  mutate(damageCodes = case_when(
+    (eventID == 12 & treeNum == 22) ~ "",
+    (eventID == 76 & treeNum == 4) ~ "", #change row that had the character string "NA" and "N"
+    TRUE ~ damageCodes),
+    birdDamage = case_when(
+      (eventID == 3 & treeNum == 27) ~ "",     (eventID == 4 & treeNum == 15) ~ "",
+      (eventID == 6 & treeNum == 31) ~ "",     (eventID == 10 & treeNum == 21) ~ "",
+      (eventID == 18 & treeNum == 5) ~ "",     (eventID == 19 & treeNum == 14) ~ "",
+      (eventID == 25 & treeNum == 54) ~ "",    (eventID == 25 & treeNum == 55) ~ "",
+      (eventID == 34 & treeNum == 29) ~ "",    (eventID == 35 & treeNum == 2) ~ "",
+      (eventID == 36 & treeNum == 63) ~ "",    (eventID == 56 & treeNum == 15) ~ "",
+      (eventID == 68 & treeNum == 40) ~ "",  #literally saw woodpeckers on tree. Keep?
+      (eventID == 70 & treeNum == 5) ~ "", 
+      (eventID == 74 & treeNum == 2) ~ "",     (eventID == 74 & treeNum == 21) ~ "",
+      TRUE ~ birdDamage),
+    brokDamage = case_when(
+      (eventID == 30 & treeNum == 1) ~ "",     (eventID == 32 & treeNum == 9) ~ "",
+      (eventID == 54 & treeNum == 11) ~ "",    (eventID == 55 & treeNum == 16) ~ "",
+      (eventID == 56 & treeNum == 10) ~ "",    (eventID == 59 & treeNum == 9) ~ "",
+      (eventID == 74 & treeNum == 8) ~ "",     (eventID == 74 & treeNum == 41) ~ "",
+      (eventID == 76 & treeNum == 1) ~ "",     (eventID == 76 & treeNum == 24) ~ "",
+      (eventID == 9) ~ "",
+      TRUE ~ brokDamage),
+    crokDamage = case_when(
+      (eventID == 34 & treeNum == 21) ~ "",
+      TRUE ~ crokDamage),
+    fireDamage = case_when(
+      (eventID == 49 & treeNum == 32) ~ "",   (eventID == 56 & treeNum == 16) ~ "",
+      str_detect(notes, "(?i)no\\s+fire\\s+scar") ~ "",
+      TRUE ~ fireDamage),
+    sparDamage = case_when(
+      (eventID == 17 & treeNum == 25) ~ "",   (eventID == 21 & treeNum == 5) ~ "",
+      (eventID == 25 & treeNum == 6) ~ "",    (eventID == 25 & treeNum == 46) ~ "",
+      (eventID == 55 & treeNum == 7) ~ "",    (eventID == 55 & treeNum == 8) ~ "",
+      (eventID == 59 & treeNum == 15) ~ "",
+      TRUE ~ sparDamage),
+    twinDamage = case_when(
+      (eventID == 25 & treeNum == 52) ~ "",   (eventID == 28 & treeNum == 4) ~ "",
+      TRUE ~ twinDamage)
+  )
+
+#add in handful of missed codes 
+pila_list <- pila_list %>%
+  mutate(
+    forkDamage = case_when(
+      (eventID == 25 & treeNum == 52) ~ "LEAN",
+      TRUE ~ forkDamage),
+    leanDamage = case_when(
+      (eventID == 13 & treeNum == 10) ~ "LEAN",   (eventID == 19 & treeNum == 37) ~ "LEAN",
+      (eventID == 30 & treeNum == 4) ~ "LEAN",
+      TRUE ~ leanDamage),
+    mechDamage = case_when(
+      (eventID == 18 & treeNum == 26) ~ "MECH",   (eventID == 19 & treeNum == 35) ~ "MECH",
+      (eventID == 25 & treeNum == 8) ~ "MECH",    (eventID == 25 & treeNum == 39) ~ "MECH",
+      (eventID == 39 & treeNum == 37) ~ "MECH",   (eventID == 56 & treeNum == 33) ~ "MECH",
+      (eventID == 72 & treeNum == 27) ~ "MECH",   (eventID == 76 & treeNum == 19) ~ "MECH",
+      TRUE ~ mechDamage),
+    sdDamage = case_when(
+      (eventID == 15 & treeNum == 13) ~ "SD",     (eventID == 25 & treeNum == 15) ~ "SD",
+      (eventID == 56 & treeNum == 21) ~ "SD",
+      TRUE ~ sdDamage)
+  )
+
+#paste values from separate damage columns into damageCodes
+#this currently creates a few duplicate codes in the damageCodes column. This could eventually be fixed with some conditionals.
+pila_list <- pila_list %>% 
+  mutate(damageCodes = case_when(
+    (birdDamage != "") ~ paste(damageCodes, birdDamage, sep = "|"),
+    (brokDamage != "") ~ paste(damageCodes, brokDamage, sep = "|"),
+    (bromDamage != "") ~ paste(damageCodes, bromDamage, sep = "|"),
+    (crokDamage != "") ~ paste(damageCodes, crokDamage, sep = "|"),
+    (fireDamage != "") ~ paste(damageCodes, fireDamage, sep = "|"),
+    (forkDamage != "") ~ paste(damageCodes, forkDamage, sep = "|"),
+    (mammDamage != "") ~ paste(damageCodes, mammDamage, sep = "|"),
+      (sdDamage != "") ~ paste(damageCodes, sdDamage, sep = "|"),
+    (sparDamage != "") ~ paste(damageCodes, sparDamage, sep = "|"),
+    (twinDamage != "") ~ paste(damageCodes, twinDamage, sep = "|"),
+    TRUE ~ damageCodes))
 
 # add GBIF columns to match occurrence tab template
 pila_list <- pila_list %>% 
@@ -124,9 +250,14 @@ cleanPILAdata <- pila_list %>%
          diameter, height, pitchTubes, exitHoles, 
          activeBranchCanker, inactiveBranchCanker, 
          activeBoleCanker, inactiveBoleCanker, 
-         deadTop, percentLive, boleChar, damageCodes)
+         deadTop, percentLive, boleChar, damageCodes,
+         plot_beg_UTM_N, plot_beg_UTM_E,
+         plot_end_UTM_N, plot_end_UTM_E,
+         PILA_UTM_E, PILA_UTM_N, estimatedAccuracy_PILA_ft,
+         dOut_m, dSideR_m, dSideL_m,
+         est_dOut_m, est_dSideR, est_dSideL)
 
-# Part3: YOSE PILA Data Import -------------------------
+# Part3: YOSE PILA Data Export -------------------------
 
 # save as a csv file in the working directory
 write.csv(cleanPILAdata, "YOSE_cleanPILAdata.csv", row.names = FALSE) # don't save first column
@@ -138,7 +269,7 @@ write.csv(cleanPILAdata, "YOSE_cleanPILAdata.csv", row.names = FALSE) # don't sa
 folders <- list.dirs(datadir, full.names = TRUE)[-c(1,4)] # Ensure full path names are used
 
 # initialize an empty list to store data for each plot
-tree_list <- data.frame() #pila_list var changed to tree_list
+tree_list <- data.frame()
 
 # loop through each folder
 for (folder in folders) {
@@ -181,13 +312,10 @@ tree_list <- tree_list %>%
   ))
 summary(tree_list)
 
-# check species field
-unique(tree_list$species)
-
-# clean species list
+#correct misspellings and inconsistencies in tree_list
 tree_list <- tree_list %>%
   mutate(species = case_when(
-    species == "PYGE" ~ "PIJE", # correct misspelling in data entry
+    species == "PYGE" ~ "PIJE",
     species %in% c("unknown", "UNK", "UNKNOWN", "Charcol", "Unknown") ~ "UNKNOWN",
     TRUE ~ species
   ))
@@ -195,7 +323,7 @@ tree_list <- tree_list %>%
 # check species field again
 unique(tree_list$species)
 
-# remove SALIX and CONU because they should be shrubs 
+#remove SALIX and CONU because they should be shrubs 
 # although some are tree-like, these species were likely not assessed as trees uniformly across the plots
 tree_list <- tree_list %>% 
   filter(species != "CONU") %>% 
@@ -219,55 +347,39 @@ tree_list$damageCodes <- gsub('BROKE', 'BROK',
 
 #start with empty column and use separate if_else statements for each term 
 tree_list <- tree_list %>% 
-  mutate(abgrDamage = "",   birdDamage = "",
-         brokDamage = "",   crokDamage = "",
-         bromDamage = "",   dtopDamage = "",
-         fireDamage = "",   forkDamage = "",
-         leanDamage = "",   mammDamage = "",
-         mechDamage = "",   mistDamage = "",
-         sdDamage = "",     sparDamage = "",
+  mutate(birdDamage = "",  brokDamage = "",   crokDamage = "",
+         bromDamage = "",  fireDamage = "",   forkDamage = "",
+         leanDamage = "",  mammDamage = "",   mechDamage = "",
+         mistDamage = "",  sparDamage = "",   sdDamage = "", 
          twinDamage = "",)
 
 #add damage codes that are not accounted for in the column based on the notes
 #commented lines were checked  - for these columns, all cases where the code found damage codes in the notes already had the code in the column
 tree_list <- tree_list %>% 
-  mutate(#abgrDamage = if_else(str_detect(notes, "(?i)abgr"), "ABGR", "", missing = ""),
-         birdDamage = if_else(str_detect(notes, "(?i)sap\\s+sucker") | str_detect(notes, "(?i)sucker") | str_detect(notes, "(?i)wp") | str_detect(notes, "(?i)w\\s+p") | str_detect(notes, "(?i)bird") | str_detect(notes, "(?i)peck"), "BIRD", "", missing = ""),
+  mutate(birdDamage = if_else(str_detect(notes, "(?i)sap\\s+sucker") | str_detect(notes, "(?i)sucker") | str_detect(notes, "(?i)wp") | str_detect(notes, "(?i)w\\s+p") | str_detect(notes, "(?i)bird") | str_detect(notes, "(?i)peck"), "BIRD", "", missing = ""),
          brokDamage = if_else(str_detect(notes, "(?i)brok") | str_detect(notes, "(?i)btop"), "BROK", "", missing = ""),
          bromDamage = if_else(str_detect(notes, "(?i)broom"), "BROM", "", missing = ""),
          crokDamage = if_else(str_detect(notes, "(?i)crok") | str_detect(notes, "(?i)crook"), "CROK", "", missing = ""),
-        #dtop
          fireDamage = if_else(str_detect(notes, "(?i)char") | str_detect(notes, "(?i)torched") | str_detect(notes, "(?i)crisp") | str_detect(notes, "(?i)fire") | str_detect(notes, "(?i)burn") | str_detect(notes, "(?i)fs") | str_detect(notes, "(?i)cat\\s+face"), "FIRE", "", missing = ""),
          forkDamage = if_else(str_detect(notes, "(?i)fork"), "FORK", "", missing = ""), #why so few of these?
-        #leanDamage = if_else(str_detect(notes, "(?i)lean") | str_detect(notes, "(?i)horiz"), "LEAN", "", missing = ""),
          mammDamage = if_else(str_detect(notes, "(?i)rodent") | str_detect(notes, "(?i)bear" ), "MAMM", "", missing = ""), #what to do with 1 instance of mech or rodent? probably just mech, since more general
-        #mechDamage = if_else(str_detect(notes, "(?i)mech"), "MECH", "", missing = ""),
          mistDamage = if_else(str_detect(notes, "(?i)mist"), "MIST", "", missing = ""), #this may miss things that are only called as brooming, but I think that's best
-             #sdDamage = if_else(str_detect(notes, "(?i)sd"), "SD", "", missing = ""),
          sparDamage = if_else(str_detect(notes, "(?i)spars") | str_detect(notes, "(?i)thin"), "SPAR", "", missing = ""),
          twinDamage = if_else(str_detect(notes, "(?i)twin"), "TWIN", "", missing = "")
-#       , case_when(damageCodes == "NA" ~ "")   #would remove NAs in concat cells if it worked
-        )
-
-#check fire damage column - also need to check for false positive FIRE, then remove
-unique(tree_list$fireDamage)
+         )
 
 #temporary object to check the damage columns
-treeDMG <- filter(tree_list, bromDamage == "BROM") %>% 
-  select(plotID, treeNum, species, percentLive, damageCodes, notes, bromDamage)
+#treeDMG <- filter(tree_list, bromDamage == "BROM") %>% select(plotID, treeNum, species, percentLive, damageCodes, notes, bromDamage)
 
-#remove false positives in fireDamage col e.g. "offshoot" and "no fire scar"
+#remove false positives in fireDamage column, e.g. "offshoot" and "no fire scar"
 tree_list <- tree_list %>%
   mutate(fireDamage = case_when(
-    (plotID == 12 & treeNum == 6) ~ "",
-    (plotID == 74 & treeNum == 7) ~ "",
-    (plotID == 74 & treeNum == 9) ~ "",
-    (plotID == 44 & treeNum == 3) ~ "",
+    (plotID == 12 & treeNum == 6) ~ "",   (plotID == 74 & treeNum == 7) ~ "",
+    (plotID == 74 & treeNum == 9) ~ "",   (plotID == 44 & treeNum == 3) ~ "",
     str_detect(notes, "(?i)no\\s+fire\\s+scar") ~ "",
     TRUE ~ fireDamage),
     mistDamage = case_when(
-      str_detect(notes, "(?i)possible\\s+mist") ~ "",
-      str_detect(notes, "(?i)propbably\\s+mist") ~ "",  #misspelling intentional; matches misspelling in notes
+      str_detect(notes, "(?i)possible\\s+mist") ~ "",    str_detect(notes, "(?i)propbably\\s+mist") ~ "",  #misspelling intentional; matches misspelling in notes
       str_detect(notes, "(?i)probably\\s+mist") ~ "",
       TRUE ~ mistDamage),
     twinDamage = case_when(
@@ -281,33 +393,25 @@ tree_list <- tree_list %>%
     (plotID == 35 & treeNum == 195) ~ "LEAN",
     TRUE ~ leanDamage),
     mechDamage = case_when(
-      (plotID == 18 & treeNum == 5) ~ "MECH",
-      (plotID == 19 & treeNum == 91) ~ "MECH",
-      (plotID == 35 & treeNum == 193) ~ "MECH",
-      (plotID == 49 & treeNum == 52) ~ "MECH",
+      (plotID == 18 & treeNum == 5) ~ "MECH",    (plotID == 19 & treeNum == 91) ~ "MECH",
+      (plotID == 35 & treeNum == 193) ~ "MECH",  (plotID == 49 & treeNum == 52) ~ "MECH",
       TRUE ~ mechDamage),
     sdDamage = case_when(
-      (plotID == 35 & treeNum == 195) ~ "SD",
-      (plotID == 35 & treeNum == 198) ~ "SD",
-      (plotID == 35 & treeNum == 204) ~ "SD",
-      (plotID == 35 & treeNum == 237) ~ "SD",
-      (plotID == 35 & treeNum == 245) ~ "SD",
-      (plotID == 35 & treeNum == 248) ~ "SD",
-      (plotID == 49 & treeNum == 65) ~ "SD",
-      (plotID == 49 & treeNum == 69) ~ "SD",
+      (plotID == 35 & treeNum == 195) ~ "SD",    (plotID == 35 & treeNum == 198) ~ "SD",
+      (plotID == 35 & treeNum == 204) ~ "SD",    (plotID == 35 & treeNum == 237) ~ "SD",
+      (plotID == 35 & treeNum == 245) ~ "SD",    (plotID == 35 & treeNum == 248) ~ "SD",
+      (plotID == 49 & treeNum == 65) ~ "SD",     (plotID == 49 & treeNum == 69) ~ "SD",
       (plotID == 60 & treeNum == 50) ~ "SD",
       TRUE ~ sdDamage)
     )
 
-#paste Damage into damageCodes
+#paste values in from separate damage columns into damageCodes
 #this currently creates a few duplicate codes in the damageCodes column. This could eventually be fixed with some conditionals.
-tree_list <- tree_list %>% 
-  mutate(damageCodes = case_when(
+tree_list <- mutate(tree_list,damageCodes = case_when(
     (birdDamage != "") ~ paste(damageCodes, birdDamage, sep = "|"),
     (brokDamage != "") ~ paste(damageCodes, brokDamage, sep = "|"),
     (bromDamage != "") ~ paste(damageCodes, bromDamage, sep = "|"),
     (crokDamage != "") ~ paste(damageCodes, crokDamage, sep = "|"),
-    (dtopDamage != "") ~ paste(damageCodes, dtopDamage, sep = "|"),
     (fireDamage != "") ~ paste(damageCodes, fireDamage, sep = "|"),
     (forkDamage != "") ~ paste(damageCodes, forkDamage, sep = "|"),
     (mammDamage != "") ~ paste(damageCodes, mammDamage, sep = "|"),
@@ -320,7 +424,7 @@ tree_list <- tree_list %>%
 
 #maybe select out 
 # write results to a csv in case GBIF format is not desirable
-write.csv(tree_list, "CleanTreeList.csv")
+write.csv(tree_list, "YOSE_cleanTreeList.csv")
 
 # Part7: Reorganization for GBIF -------------------------
 
@@ -384,7 +488,6 @@ treeOccurrenceData <- treeOccurrenceData %>%
          inactiveBoleCanker = "",
          deadTop = if_else((str_detect(damageCodes, "\\bDTOP\\b") | (str_detect(damageCodes, "\\bSD\\b"))), "Y", "N", missing = "N"),
          boleChar = if_else(str_detect(damageCodes, "\\bFIRE\\b"), "Y", "N", missing = "N"))
-
 
 # select columns for GBIF occurrence tab
 gbifTreeOccurrence <- treeOccurrenceData %>% 
