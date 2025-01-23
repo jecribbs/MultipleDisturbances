@@ -97,8 +97,8 @@ pila_list$damageCodes <- gsub('BROKE', 'BROK',
 #create empty columns for damage codes that need adding or changing 
 pila_list <- mutate(pila_list,
          birdDamage = "", brokDamage = "",   crokDamage = "",
-         bromDamage = "", fireDamage = "",   forkDamage = "",
-         mammDamage = "", sdDamage = "",     sparDamage = "", twinDamage = "")
+         bromDamage = "", fireDamage = "",   forkDamage = "",   leanDamage = "",
+         mammDamage = "", mechDamage = "",   sdDamage = "",     sparDamage = "", twinDamage = "")
 
 #add damage codes that are not accounted for in the column based on the notes
 pila_list <- pila_list %>% 
@@ -107,17 +107,15 @@ pila_list <- pila_list %>%
     bromDamage = if_else(str_detect(notes, "(?i)broom"), "BROM", "", missing = ""),
     crokDamage = if_else(str_detect(notes, "(?i)crok") | str_detect(notes, "(?i)crook"), "CROK", "", missing = ""),
     fireDamage = if_else(str_detect(notes, "(?i)char") | str_detect(notes, "(?i)torched") | str_detect(notes, "(?i)crisp") | str_detect(notes, "(?i)fire") | str_detect(notes, "(?i)burn") | str_detect(notes, "(?i)fs") | str_detect(notes, "(?i)cat\\s+face"), "FIRE", "", missing = ""),
-    forkDamage = if_else(str_detect(notes, "(?i)fork"), "FORK", "", missing = ""), #why so few of these?
+    forkDamage = if_else(str_detect(notes, "(?i)fork"), "FORK", "", missing = ""), 
     mammDamage = if_else(str_detect(notes, "(?i)rodent") | str_detect(notes, "(?i)bear" ), "MAMM", "", missing = ""),
-    sdDamage = if_else(str_detect(notes, "(?i)sd"), "SD", "", missing = ""),
+    sdDamage   = if_else(str_detect(notes, "(?i)sd"), "SD", "", missing = ""),
     sparDamage = if_else(str_detect(notes, "(?i)spars") | str_detect(notes, "(?i) thin") | str_detect(notes, "(?i)thin ") | str_detect(notes, "(?i)thin,"), "SPAR", "", missing = ""),
     twinDamage = if_else(str_detect(notes, "(?i)twin"), "TWIN", "", missing = "")
-     )
+    )
 
 #temporary object to check the damage columns
-#pilaDMG <- filter(pila_list, twinDamage == "TWIN") %>% select(eventID, treeNum, species, percentLive, damageCodes, notes, twinDamage)
-
-#PILA1826 - twin canopy???
+pilaDMG <- filter(pila_list, twinDamage == "TWIN") %>% select(eventID, treeNum, species, percentLive, damageCodes, notes, twinDamage)
 
 #remove false positives in damage column, e.g. "offshoot", "no fire scar", "yellow pitch"
 pila_list <- pila_list %>%
@@ -132,8 +130,7 @@ pila_list <- pila_list %>%
       (eventID == 25 & treeNum == 54) ~ "",    (eventID == 25 & treeNum == 55) ~ "",
       (eventID == 34 & treeNum == 29) ~ "",    (eventID == 35 & treeNum == 2) ~ "",
       (eventID == 36 & treeNum == 63) ~ "",    (eventID == 56 & treeNum == 15) ~ "",
-      (eventID == 68 & treeNum == 40) ~ "",  #literally saw woodpeckers on tree. Keep?
-      (eventID == 70 & treeNum == 5) ~ "", 
+      (eventID == 68 & treeNum == 40) ~ "",    (eventID == 70 & treeNum == 5) ~ "", 
       (eventID == 74 & treeNum == 2) ~ "",     (eventID == 74 & treeNum == 21) ~ "",
       TRUE ~ birdDamage),
     brokDamage = case_when(
@@ -195,7 +192,7 @@ pila_list <- pila_list %>%
     (fireDamage != "") ~ paste(damageCodes, fireDamage, sep = "|"),
     (forkDamage != "") ~ paste(damageCodes, forkDamage, sep = "|"),
     (mammDamage != "") ~ paste(damageCodes, mammDamage, sep = "|"),
-      (sdDamage != "") ~ paste(damageCodes, sdDamage, sep = "|"),
+      (sdDamage != "") ~ paste(damageCodes,   sdDamage, sep = "|"),
     (sparDamage != "") ~ paste(damageCodes, sparDamage, sep = "|"),
     (twinDamage != "") ~ paste(damageCodes, twinDamage, sep = "|"),
     TRUE ~ damageCodes))
@@ -250,12 +247,7 @@ cleanPILAdata <- pila_list %>%
          diameter, height, pitchTubes, exitHoles, 
          activeBranchCanker, inactiveBranchCanker, 
          activeBoleCanker, inactiveBoleCanker, 
-         deadTop, percentLive, boleChar, damageCodes,
-         plot_beg_UTM_N, plot_beg_UTM_E,
-         plot_end_UTM_N, plot_end_UTM_E,
-         PILA_UTM_E, PILA_UTM_N, estimatedAccuracy_PILA_ft,
-         dOut_m, dSideR_m, dSideL_m,
-         est_dOut_m, est_dSideR, est_dSideL)
+         deadTop, percentLive, boleChar, damageCodes)
 
 # Part3: YOSE PILA Data Export -------------------------
 
@@ -520,6 +512,17 @@ gbifOccurrence <- gbifOccurrence %>%
     )
   )
 
+gbifOccurrence <- gbifOccurrence %>%
+  mutate(
+    damageCodes = sapply(damageCodes, function(x) {
+      #split by "|"
+      codes <- unique(unlist(strsplit(as.character(x), "\\|")))
+      #remove NA
+      codes <- codes[!is.na(codes) & codes != "NA"]
+      #recombine into single string
+      paste(codes, collapse = "|")
+    })
+  )
 write.csv(gbifOccurrence, "YOSE_GBIFoccurrence.csv", row.names = FALSE) # don't save first column
 
 
