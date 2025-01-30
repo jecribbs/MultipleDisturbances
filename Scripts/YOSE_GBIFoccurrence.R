@@ -1,7 +1,7 @@
 # GBIF: Occurence Tab for PILA and Associated Trees
 # Authors: Jenny Cribbs, Tazlina Dentinger
 # Date created: 06 December 2024
-# Updated: 21 January 2025, TMD
+# Updated: 30 January 2025, TMD
 
 # Overall Input: Read in PILA and Associated Tree data from Excel files downloaded from Google Sheets using for loop
 # Code Description: clean data with a row for each tree with a unique occurrence ID and columns matching GBIF columns, so the output can be pasted into NPS template occurrence tab
@@ -96,9 +96,10 @@ pila_list$damageCodes <- gsub('BROKE', 'BROK',
 
 #create empty columns for damage codes that need adding or changing 
 pila_list <- mutate(pila_list,
-         birdDamage = "", brokDamage = "",   crokDamage = "",
-         bromDamage = "", fireDamage = "",   forkDamage = "",   leanDamage = "",
-         mammDamage = "", mechDamage = "",   sdDamage = "",     sparDamage = "", twinDamage = "")
+         birdDamage = "",  brokDamage = "",  bromDamage = "",
+         crokDamage = "",  fireDamage = "",  forkDamage = "",   
+         leanDamage = "",  mammDamage = "",  mechDamage = "",   
+         sdDamage = "",    sparDamage = "",  twinDamage = "")
 
 #add damage codes that are not accounted for in the column based on the notes
 pila_list <- pila_list %>% 
