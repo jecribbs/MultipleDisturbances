@@ -14,6 +14,7 @@ if (!require("librarian")) install.packages("librarian")
 librarian::shelf(tidyverse, readxl, viridis, patchwork)
 library(VIM)
 library(dplyr)
+library(tidyverse)
 
 # Set the working directory
 #setwd("/Users/jennifercribbs/Documents/YOSE/Analysis/MultipleDisturbances/")
@@ -78,10 +79,8 @@ pila_list <- pila_list %>%
          deadTop = DTOP, 
          boleChar = fire_scar)
 
-##DAMAGE CODES: scan notes for damage codes and indicators thereof, create new columns for each code, then paste into the damageCodes column in tree_list
-
-# check damage codes field
-unique(pila_list$damageCodes)
+##------DAMAGE CODES-------- 
+#scan notes for damage codes and indicators thereof, create new columns for each code, then paste into the damageCodes column in tree_list
 
 # make damage codes uppercase
 pila_list <- pila_list %>% 
@@ -115,8 +114,14 @@ pila_list <- pila_list %>%
     twinDamage = if_else(str_detect(notes, "(?i)twin"), "TWIN", "", missing = "")
     )
 
+pila_list <- pila_list %>% 
+  mutate(fireDamage = case_when(
+    (as.numeric(boleChar) > 0) ~ "FIRE",
+    TRUE ~ fireDamage
+  ))
+
 #temporary object to check the damage columns
-pilaDMG <- filter(pila_list, twinDamage == "TWIN") %>% select(eventID, treeNum, species, percentLive, damageCodes, notes, twinDamage)
+#pilaDMG <- filter(pila_list, twinDamage == "TWIN") %>% select(eventID, treeNum, species, percentLive, damageCodes, notes, twinDamage)
 
 #remove false positives in damage column, e.g. "offshoot", "no fire scar", "yellow pitch"
 pila_list <- pila_list %>%
@@ -197,6 +202,27 @@ pila_list <- pila_list %>%
     (sparDamage != "") ~ paste(damageCodes, sparDamage, sep = "|"),
     (twinDamage != "") ~ paste(damageCodes, twinDamage, sep = "|"),
     TRUE ~ damageCodes))
+
+#------BOLE CHAR COLUMN--------
+#based on the current boleChar column, create boleCharText and boleCharNum
+pila_list_char <- mutate(pila_list,
+                    boleCharText = "",
+                    boleCharNum = "")
+
+#boleCharLog is Y if num >0 or if Y; N if N or num = 0; NA if NA, else ?
+pila_list_char <- pila_list_char %>%
+  mutate(
+    boleCharNum = suppressWarnings(as.numeric(boleChar)),  # Convert safely
+    boleCharText = case_when(
+      !is.na(boleCharNum) & boleCharNum > 0 ~ "Y",
+      !is.na(boleCharNum) & boleCharNum == 0 ~ "N",
+      TRUE ~ NA_character_
+    )
+  ) 
+
+pila_list_char_test <- pila_list_char %>% 
+  select(eventID, treeNum, diameter, height, boleChar, boleCharText, boleCharNum, damageCodes)
+
 
 # add GBIF columns to match occurrence tab template
 pila_list <- pila_list %>% 
