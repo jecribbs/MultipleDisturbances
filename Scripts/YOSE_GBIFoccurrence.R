@@ -212,17 +212,20 @@ pila_list_char <- mutate(pila_list,
 #boleCharLog is Y if num >0 or if Y; N if N or num = 0; NA if NA, else ?
 pila_list_char <- pila_list_char %>%
   mutate(
-    boleCharNum = suppressWarnings(as.numeric(boleChar)),  # Convert safely
+    boleCharNum = suppressWarnings(as.numeric(boleChar)),  #this leaves Ns in the original column as NAs in the boleCharNum column
     boleCharText = case_when(
       !is.na(boleCharNum) & boleCharNum > 0 ~ "Y",
       !is.na(boleCharNum) & boleCharNum == 0 ~ "N",
-      TRUE ~ NA_character_
+      boleChar == "Y" ~ "Y",
+      boleChar == "N" ~ "N",
+      boleChar == "<10" ~ "Y", #what to do with boleCharNum in this case?
+      is.na(boleChar) ~ NA_character_,
+      TRUE ~ NA_character_ #this does not have any entries, and shouldn't.
     )
   ) 
 
 pila_list_char_test <- pila_list_char %>% 
   select(eventID, treeNum, diameter, height, boleChar, boleCharText, boleCharNum, damageCodes)
-
 
 # add GBIF columns to match occurrence tab template
 pila_list <- pila_list %>% 
