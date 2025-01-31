@@ -23,6 +23,9 @@ scratch/
 sandbox/
 temp/
 output/
+dataSandbox/
+scriptsSandbox/
+outputSandbox/
 
 # Files to exclude but keep locally
 !README.md  # Example: ensures README is always tracked
