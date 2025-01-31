@@ -1,3 +1,9 @@
+# Tree Map 
+# 30 January 2025
+# Author: Jenny Cribbs
+# Inputs: plot data from the event ID script, tree data and plot data read in from the Google Sheets
+# Code Description: (1) spatial data wrangling to use plot beginning waypoints in utms to calculate plot end waypoints in utms based on azimuth and transect length in meters (2) visualize points (3) choose calculated or gps waypoint to get one end point per plot (4) visualize result (5) convert all points to decimal degrees. (6) calculate utms for associated trees based on dOut and dSide (7) calculate utms for pila based on dOut and dSide (8) map all trees and pila (from gps and xy)
+# Output: (1) a csv file with lat/long coordinates for each plot beginning and end point. (2) a csv file with lat/long coordinates for each tree.
 
 library(tidyverse)
 library(terra)
