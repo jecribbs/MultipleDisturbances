@@ -228,6 +228,9 @@ print(list(tree_UTM_E = tree_UTM_E, tree_UTM_N = tree_UTM_N))
 # use relative tree calculation for plot 75 tree 19
 relativeTreeCalculation(283229, 4201801, 28, 160) # 283333, 4201923
 
+# use relative tree calculation for plot 48 tree 1
+relativeTreeCalculation(0271604, 4182348, 174, 900.9) # 271502, 4181453
+
 # Create spatial points for gps pila and convert to lat/long (WGS84)
 pila_points_estimated <- pila_points_estimated %>%
   group_split(UTM_zone) %>%
