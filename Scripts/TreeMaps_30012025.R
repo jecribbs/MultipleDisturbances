@@ -90,6 +90,11 @@ pilas <- pilas %>% mutate(kml_id = paste(GPSdevice, PILA_waypoint))
 pilas <- pilas %>% filter(!is.na(plotID))
 
 # E75 is mostly GPS, 18 and 19 are xy, but 16 and 17 are missing all position information because of cryptic position notes down and towards trail is pretty close to south
+# clean up estimated position values based on notes
+# use relative tree calculation for plot 75 tree 19
+relativeTreeCalculation(283229, 4201801, 28, 160) # 283333, 4201923
+# use relative tree calculation for plot 48 tree 1
+relativeTreeCalculation(0271604, 4182348, 174, 900.9) # 271502, 4181453
 # Calculated relative tree position for plot 75 tree 19 in TreeMaps2.R
 # impute data to replace notes with calculated utms
 pilas <- pilas %>%
@@ -124,10 +129,10 @@ pilas <- pilas %>%
     PILA_UTM_E = ifelse(occurrenceID == "E75-PILA17", 283285, PILA_UTM_E),
     PILA_UTM_N = ifelse(occurrenceID == "E75-PILA17", 4201667, PILA_UTM_N)  ) 
 
-# Change dOut_m to numeric
+# change dOut_m to numeric (no NAs introduced)
 pilas$dOut_m <- as.numeric(pilas$dOut_m)
 
-# convert dSide Right to numeric (no NAs after imputation above)
+# convert dSide Right to numeric (no NAs introduced)
 pilas$dSideR_m <- as.numeric(pilas$dSideR_m)
 
 summary(pilas)
@@ -159,17 +164,18 @@ pilas$GPSdevice <- trimws(tolower(pilas$GPSdevice))
 kml$Source <- trimws(tolower(kml$Source))
 i <- filter(pilas, GPSdevice == "66i")
 sr <- filter(pilas, GPSdevice == "66sr")
+# there is no si unit--but waypoint name should allow for matching
 si <- filter(pilas, GPSdevice == "66si")
 si_check <- si %>% select(occurrenceID, GPSdevice, dOut_m, dSide, PILA_waypoint, PILA_UTM_E, PILA_UTM_N, crew, date, plotID)
 # 30 points were taken on the inreach that was returned to UCD
 # fortunately they are entered as utms, so hopefully no errors 
-# We will not be able increase precision by using the device directly, but shouldn't be a big deal
+# we will not be able increase precision by using the device directly, but shouldn't be a big deal
 inreach <- filter(pilas, GPSdevice == "inreach")
 
-# Normalize waypoint names to ensure they have the same length
+# normalize waypoint names to ensure they have the same length
 # Remove any rows where the waypoint name contains letters
 
-# This keeps only numeric waypoint names (570 of 639)
+# this keeps only numeric waypoint names (570 of 639)
 # this should exclude points from other projects
 kml_filtered <- kml[!grepl("[a-zA-Z]", kml$Name), ]
 
@@ -247,93 +253,113 @@ pilas_kml <- pilas_kml %>%
   mutate(dSideL_m = if_else(!is.na(dSideL_m) & dSideL_m > 0, -dSideL_m, dSideL_m))
 # combine right and left sides
 pilas_kml <- pilas_kml %>%
-  mutate(dSide = case_when(
+  mutate(dSide_combined = case_when(
     !is.na(dSideR_m) & dSideR_m >= 0 ~ dSideR_m,
     !is.na(dSideL_m) & dSideL_m <= 0 ~ dSideL_m,
     TRUE ~ NA_real_
   ))
 summary(pilas_kml)
 
-# clean up estimated position values based on notes
-# use relative tree calculation for plot 75 tree 19
-relativeTreeCalculation(283229, 4201801, 28, 160) # 283333, 4201923
-# use relative tree calculation for plot 48 tree 1
-relativeTreeCalculation(0271604, 4182348, 174, 900.9) # 271502, 4181453
+# coerce estimated columns to numeric (NAs introduced from notes relative to WP29--corrected in next line)
+pilas_kml <- pilas_kml %>% mutate(
+  est_dOut_m = as.numeric(est_dOut_m),
+  est_dSideL = as.numeric(est_dSideL)
+) 
+# Add position information for unusual cases
 # modify specific values for eventID == "E58-PILA16"--calculated by hand using trig from WP29 as described in the notes
 pilas_kml <- pilas_kml %>%
   mutate(
-    dSide = as.numeric(dSide),
-    dOut_m = if_else(occurrenceID == "E58-PILA16", 63.5, dOut_m),  # Modify dOut_m
-    dSide = if_else(occurrenceID == "E58-PILA16", -47, dSide)  # Modify dSide
+    est_dOut_m = if_else(occurrenceID == "E58-PILA16", 63.5, est_dOut_m),  # Modify dOut_m
+    est_dSideL = if_else(occurrenceID == "E58-PILA16", -47, est_dSideL)  # Modify dSide
   )
-# coerce columns to numeric
-pilas_kml %>% mutate(
-  est_dOut_m = as.numeric(est_dOut_m),
-  est_dSide_m = as.numeric(est_dSide)
-) 
-# combine right and left sides
-mutate(est_dSide = case_when(
+
+# combine right and left sides (NAs intorduced here--could be more notes)
+pilas_kml <- pilas_kml %>% mutate(est_dSide = case_when(
   !is.na(est_dSideR) & est_dSideR >= 0 ~ est_dSideR,
   !is.na(est_dSideL) & est_dSideL <= 0 ~ est_dSideL,
   TRUE ~ NA_real_))
   
-  # combine measured and estimated columns
-  mutate(
-    dOut_final = coalesce(dOut_m, est_dOut_m),
-    dSide_final = coalesce(dSide_m, est_dSide)
-  ) %>%
-  # create a flag column
+# Check for entries where both measured and estimated values exist
+conflicts <- pilas_kml %>%
+  filter(!is.na(dSide_combined) & !is.na(est_dSide)) # Entries with both values
+print(conflicts) # none
+
+# finalize dSide by prioritizing measured over estimated values
+pilas_kml <- pilas_kml %>% 
+    mutate(dSide_final = case_when(!is.na(dSide_m) ~ dSide_m,
+                                  !is.na(dSide_combined) ~ dSide_combined,
+                                  !is.na(est_dSide) ~ as.numeric(est_dSide),
+                                  TRUE ~ NA_real_))
+# finalize dOut by prioritizing measured over estimated values
+pilas_kml <- pilas_kml %>% 
+    mutate(dOut_final = case_when(!is.na(dOut_m) ~ dOut_m,
+                                  !is.na(est_dOut_m) ~ as.numeric(est_dOut_m),
+                                  TRUE ~ NA_real_))                               
+# create flag columns to distinguish position data quality
+pilas_kml <- pilas_kml %>%  
   mutate(
     dOut_flag = case_when(
       !is.na(dOut_m) ~ "measured",
       !is.na(est_dOut_m) ~ "estimated",
-      TRUE ~ NA_character_  # Handle any remaining cases
+      TRUE ~ NA_character_  
     ),
     dSide_flag = case_when(
       !is.na(dSide_m) ~ "measured",
+      !is.na(dSide_combined) ~ "measured",
       !is.na(est_dSide) ~ "estimated",
       TRUE ~ NA_character_
     )
   )
+# rename dSide_final to match function
+pilas_kml <- pilas_kml %>% rename(dSide = dSide_final)
+# plot UTM E also needs to be numeric 
+# run calculate positions function to convert dOut and dSide to UTMs
+pila_positions <- calculate_tree_positions(pilas_kml)
 
-pilas <- pilas %>%
-  # Step 1: Replace notes with numbers
-  mutate(
-    est_dOut_m = case_when(
-      est_dOut_m == "48.7 (approx)" ~ 48.7,  # Replace specific notes
-      est_dOut_m == "50m est." ~ 50.0,
-      TRUE ~ as.numeric(est_dOut_m)  # Convert other values to numeric, leaving notes as NA
-    ),
-    est_dSide_m = case_when(
-      est_dSide_m == "approx 5m" ~ 5.0,  # Replace specific notes
-      TRUE ~ as.numeric(est_dSide_m)
-    )
-  ) %>%
-  
-  # Step 2: Coerce columns to numeric
-  mutate(
-    est_dOut_m = as.numeric(est_dOut_m),
-    est_dSide_m = as.numeric(est_dSide_m)
-  ) %>%
-  
-  # Step 3: Combine measured and estimated columns
-  mutate(
-    dOut_final = coalesce(dOut_m, est_dOut_m),
-    dSide_final = coalesce(dSide_m, est_dSide_m)
-  ) %>%
-  
-  # Step 4: Create a flag column
-  mutate(
-    dOut_flag = case_when(
-      !is.na(dOut_m) ~ "measured",
-      !is.na(est_dOut_m) ~ "estimated",
-      TRUE ~ NA_character_  # Handle any remaining cases
-    ),
-    dSide_flag = case_when(
-      !is.na(dSide_m) ~ "measured",
-      !is.na(est_dSide_m) ~ "estimated",
-      TRUE ~ NA_character_
-    )
-  )
+# Plotting Trees ~~~~~~~~~~~~~~~~~~~~# Plotpilas_kmlting Trees ~~~~~~~~~~~~~~~~~~~~
+# Tree and PILA data have different numbers of columns
+# Join each separately to plot data to map as separate spatial objects
+# start with trees since they are the simplest case
 
-                  
+# join tree data with plotData
+treeData <- left_join(treeData, select(plotData, -date, -crew), by = "plotID")
+# need to check plot 74 tree 13--appears to have no position because dOut is NA
+#tree_positions <- tree_positions %>% filter(!is.na(tree_UTM_E) & !is.na(tree_UTM_N))
+# dOut was missed in the field, but neighboring trees are 1m apart (48.2 and 49.2 dOut), so a dOut estimate of 48.7 seems more reasonable than deleting the full record
+# impute 48.7 as best guess for the missing dOut value
+treeData <- treeData %>% 
+  mutate(dOut_m = if_else(plotID == 74 & treeNum == 13, 48.7, dOut_m))
+
+# Calculate tree positions
+tree_positions <- calculate_tree_positions(treeData)
+
+# Create spatial points for trees and convert to lat/long (WGS84)
+tree_points <- tree_positions %>%
+  group_split(UTM_zone) %>%
+  map_dfr(function(df) {
+    st_as_sf(df, 
+             coords = c("tree_UTM_E", "tree_UTM_N"), 
+             crs = paste0("+proj=utm +zone=", unique(df$UTM_zone), " +datum=NAD83")) %>%
+      st_transform(crs = 4326)  # Convert to lat/long
+  })
+
+# find non-numeric dOut values
+# 271 NAs + 3 trees in plot 75 with relative positions
+# NAs include pilas with estimated position and gps position
+pilaData %>%
+  filter(!grepl("^-?[0-9.]+$", dOut_m)) %>%
+  select(occurrenceID, dOut_m) %>%
+  distinct() %>%
+  print()
+
+# Change dOut_m to numeric
+pilaData$dOut_m <- as.numeric(pilaData$dOut_m)
+
+# combine dSideR_m and dSideL_m into a single dSide column with checks
+pilaData <- pilaData %>%
+  mutate(dSide = case_when(
+    !is.na(dSideR_m) & dSideR_m >= 0 ~ dSideR_m,
+    !is.na(dSideL_m) & dSideL_m <= 0 ~ dSideL_m,
+    TRUE ~ NA_real_
+  ))
+summary(pilaData)
