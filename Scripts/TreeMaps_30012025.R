@@ -95,8 +95,8 @@ pilas <- pilas %>%
 
 # E48-PILA1 has no position information--could use relative position for 900.9m out at 262 magnetic (271502, 4181453)
 pilas <- pilas %>% mutate(
-  PILA_UTM_E = ifelse(occurrenceID == "E48-PILA1", 271502, PILA_UTM_E),
-  PILA_UTM_N = ifelse(occurrenceID == "E48-PILA1", 4181453, PILA_UTM_N))
+  PILA_UTM_E = ifelse(occurrenceID == "E48-PILA1", 271502),
+  PILA_UTM_N = ifelse(occurrenceID == "E48-PILA1", 4181453))
 
 # trees 16 and 17 have the following notes 
 #[895] "30m down and towards trail from tree 10"
@@ -123,8 +123,10 @@ pilas$dOut_m <- as.numeric(pilas$dOut_m)
 # convert dSide Right to numeric (no NAs introduced)
 pilas$dSideR_m <- as.numeric(pilas$dSideR_m)
 
-# PILA_UTM_E is character type because of preserving the leading zeros in Excel
-# coerce PILA_UTM_E to numeric (no NAs added)
+summary(pilas)
+# Why is PILA_UTM_E character?
+# Probably because of preserving the leading zeros in Excel
+# Coerce PILA_UTM_E to numeric (no NAs added)
 pilas$PILA_UTM_E <- as.numeric(pilas$PILA_UTM_E)
 
 # bring in kml files from gps units
@@ -300,80 +302,8 @@ pilas_kml$plot_beg_UTM_N <- as.numeric(pilas_kml$plot_beg_UTM_N)
 # run calculate positions function to convert dOut and dSide to UTMs
 pila_positions <- calculate_tree_positions(pilas_kml)
 
-# combine UTMs from dOut, dSide and GPS transcriptions
-pila_positions <- pila_positions %>%
-  mutate(
-    UTM_E = coalesce(tree_UTM_E, PILA_UTM_E),  # prioritize dOut/dSide
-    UTM_N = coalesce(tree_UTM_N, PILA_UTM_N)   # prioritize dOut/dSide
-  )
-# separate the data into those with UTM coordinates and those with XY coordinates
-utm_data <- pila_positions %>% filter(!is.na(UTM_E) & !is.na(UTM_N))
-xy_data <- pila_positions %>% filter(!is.na(X) | !is.na(Y))
+# consolidate all position information and convert to decimal degrees
 
-# swap coordinates to correct data entry errors (23 cases)
-utm_lat_long_fixed <- utm_data %>%
-  mutate(
-    # identify rows where coordinates are out of expected range
-    transposed_coords = UTM_E > 1000000 & UTM_N < 4000000,
-    corrected_UTM_E = if_else(transposed_coords, UTM_N, UTM_E),
-    corrected_UTM_N = if_else(transposed_coords, UTM_E, UTM_N)
-  ) %>%
-  # check what rows were not corrected (they shouldn't meet the condition)
-  filter(!transposed_coords) %>%
-  select(-transposed_coords, -UTM_E, -UTM_N) %>%
-  rename(
-    UTM_E = corrected_UTM_E,
-    UTM_N = corrected_UTM_N
-  )
-# check summary of the corrected coordinates
-summary(utm_lat_long_fixed$UTM_E) # range is good now
-summary(utm_lat_long_fixed$UTM_N) # range is good now
-
-# convert UTMs to lat/long decimal degrees
-lat_long <- utm_lat_long_fixed %>%
-  mutate(UTM_zone = case_when(
-    UTM_E > 600000 ~ 10,  # zone 10
-    UTM_E < 600000 ~ 11   # zone 11
-  )) %>%
-  group_split(UTM_zone) %>%
-  map_dfr(function(df) {
-    # Convert the data frame to an SF object with proper coordinates
-    df_sf <- st_as_sf(df, 
-                      coords = c("UTM_E", "UTM_N"), 
-                      crs = paste0("+proj=utm +zone=", unique(df$UTM_zone), " +datum=NAD83"))
-    
-    # Transform the CRS to lat/long
-    df_sf <- st_transform(df_sf, crs = 4326)
-    
-    # Extract the latitude and longitude coordinates
-    df_sf <- df_sf %>%
-      mutate(
-        latitude = st_coordinates(df_sf)[, 2],  # Extract latitude
-        longitude = st_coordinates(df_sf)[, 1]  # Extract longitude
-      )
-    
-    # Return the data frame without the geometry column
-    df_sf %>%
-      st_drop_geometry()  # Remove geometry column to simplify the data
-  })
-# trim columns before joining
-pilas_kml_trimmed <- pilas_kml %>% select (occurrenceID, X, Y)
-lat_long_trimmed <- lat_long %>% select (occurrenceID, longitude, latitude)
-
-# join converted coordinates back to the original dataset
-final_pila_positions <- left_join(pilas_kml_trimmed, lat_long_trimmed, by = "occurrenceID")
-
-# how many trees are missing any position information?
-missing_positions <- final_pila_positions %>%
-  filter(is.na(X) & is.na(Y) & is.na(longitude) & is.na(latitude))
-
-nrow(missing_positions)  # How many trees have no position data at all? 89
-
-# combine XY positions from the GPS with converted positions
-gbif_pilas <- final_pila_positions %>% mutate(
-  verbatimLatitude = coalesce (Y, latitude),
-  verbatimLongitude = coalesce (X, longitude)
-)
 # ~~~~~~~~~~~~~~~~~~~~ Associated Trees ~~~~~~~~~~~~~~~~~~~~
 
 # join tree data with plotData
@@ -417,50 +347,4 @@ pilaData <- pilaData %>%
     !is.na(dSideL_m) & dSideL_m <= 0 ~ dSideL_m,
     TRUE ~ NA_real_
   ))
-
-#~~~~~~~~~~~~~~~~~~~~~ Mapping Trees ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# Bring in the NPS boundary for YOSE
-nps <- st_read("/Users/jennifercribbs/Documents/TreePatrol.org/Analysis/Data/nps_boundary") %>% filter(UNIT_CODE == "YOSE")
-st_crs(nps) # 6269
-nps <- st_transform(nps, crs = 4326)
-# Bring in county boundaries
-counties <- st_read("/Users/jennifercribbs/Documents/YOSE/Analysis/MultipleDisturbances/dataSandbox/tl_2024_us_county/tl_2024_us_county.shp") %>% filter(NAME == "Mariposa" | NAME == "Madera" | NAME == "Tuolumne")
-# Reproject county boundaries to lat/long
-counties <- st_transform(counties, crs = 4326)
-# Read KML files to bring in gps points
-kml_66i <- st_read("/Users/jennifercribbs/Documents/YOSE/Waypoints/Recently Read from GPSMAP 66i (Unit ID 3404379582).kml") %>% 
-  mutate(Source = "66i",
-         kml_id = paste(Source, Name))
-kml_66sr <- st_read("/Users/jennifercribbs/Documents/YOSE/Waypoints/Recently Read from GPSMAP 66sr (Unit ID 3377332670).kml") %>% 
-  mutate(Source = "66sr", 
-         kml_id = paste(Source, Name))
-# create one kml from both units
-kml <- rbind(kml_66i, kml_66sr)
-st_crs(kml) # also WGS84
-
-# Map pila and non-pila trees with plot points and gps points
-tmap_mode("view")
-tm_shape(nps) +
-  tm_polygons(col = "gray",
-              title = "Yosemite") +
-  tm_shape(kml) +
-  tm_dots(col = "black") +
-  tm_shape(lat_long) +
-  tm_dots(col = "magenta") +
-  tm_shape(pila_points_xy) +
-  tm_dots(col = "purple") +
-  tm_shape(tree_points) +
-  tm_dots(col = "darkgreen") +
-  tm_shape(plotBeg_sf) +
-  tm_dots(col = "green") +
-  tm_shape(plotEnds_sf)+
-  tm_dots(col = "red") +
-  tm_shape(plotEndsGPS_sf) +
-  tm_dots(col = "pink") +
-  
-  tm_scale_bar(breaks = c(0, 5, 10), text.size = 0.7, position = c("right", "bottom")) +
-  tm_compass(type = "4star", size = 3, position = c("right", "top"))  +
-  tm_layout(main.title = "Plots in Yosemite", 
-            main.title.size = 1.25, main.title.position="center",
-            legend.outside = TRUE, legend.outside.position = "right",
-            frame = FALSE)
+summary(pilaData)
