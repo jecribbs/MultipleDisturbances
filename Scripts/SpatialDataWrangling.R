@@ -15,6 +15,7 @@ library(tmap)
 library(readxl)
 library(writexl)
 # load user defined functions relativeTreeCalculation and calculateTreePositions by running 0_TreePositionCalculationFunctions.R first
+source("/Users/jennifercribbs/Documents/YOSE/Analysis/MultipleDisturbances/Scripts/0_TreePositionCalculationFunctions.R")
 
 # Set the working directory
 setwd("/Users/jennifercribbs/Documents/YOSE/Analysis/MultipleDisturbances/")
@@ -291,14 +292,21 @@ pilas_kml <- pilas_kml %>%
       TRUE ~ NA_character_
     )
   )
+
+# check if 'dSide' exists and drop it if necessary
+if ("dSide" %in% colnames(pilas_kml)) {
+  pilas_kml <- pilas_kml %>% select(-dSide) # Drop old version
+}
 # rename dSide_final to match function
-pilas_kml <- pilas_kml %>% rename(dSide = dSide_final)
+pilas_kml_final <- pilas_kml %>%
+  rename(dSide = dSide_final)
+
 # plot UTM columns need to be numeric 
-pilas_kml$plot_beg_UTM_E <- as.numeric(pilas_kml$plot_beg_UTM_E)
-pilas_kml$plot_beg_UTM_N <- as.numeric(pilas_kml$plot_beg_UTM_N)
+pilas_kml_final$plot_beg_UTM_E <- as.numeric(pilas_kml_final$plot_beg_UTM_E)
+pilas_kml_final$plot_beg_UTM_N <- as.numeric(pilas_kml_final$plot_beg_UTM_N)
 
 # run calculate positions function to convert dOut and dSide to UTMs
-pila_positions <- calculate_tree_positions(pilas_kml)
+pila_positions <- calculate_tree_positions(pilas_kml_final)
 
 # combine UTMs from dOut, dSide and GPS transcriptions
 pila_positions <- pila_positions %>%
@@ -310,7 +318,6 @@ pila_positions <- pila_positions %>%
 utm_data <- pila_positions %>% filter(!is.na(UTM_E) & !is.na(UTM_N))
 xy_data <- pila_positions %>% filter(!is.na(X) | !is.na(Y))
 
-# swap coordinates to correct data entry errors (23 cases)
 utm_lat_long_fixed <- utm_data %>%
   mutate(
     # identify rows where coordinates are out of expected range
@@ -318,13 +325,13 @@ utm_lat_long_fixed <- utm_data %>%
     corrected_UTM_E = if_else(transposed_coords, UTM_N, UTM_E),
     corrected_UTM_N = if_else(transposed_coords, UTM_E, UTM_N)
   ) %>%
-  # check what rows were not corrected (they shouldn't meet the condition)
-  filter(!transposed_coords) %>%
-  select(-transposed_coords, -UTM_E, -UTM_N) %>%
+  # Replace the original UTM coordinates with corrected ones, no filtering
+  select(-UTM_E, -UTM_N, -transposed_coords) %>%
   rename(
     UTM_E = corrected_UTM_E,
     UTM_N = corrected_UTM_N
   )
+
 # check summary of the corrected coordinates
 summary(utm_lat_long_fixed$UTM_E) # range is good now
 summary(utm_lat_long_fixed$UTM_N) # range is good now
@@ -367,23 +374,34 @@ final_pila_positions <- left_join(pilas_kml_trimmed, lat_long_trimmed, by = "occ
 missing_positions <- final_pila_positions %>%
   filter(is.na(X) & is.na(Y) & is.na(longitude) & is.na(latitude))
 
-nrow(missing_positions)  # How many trees have no position data at all? 89
+nrow(missing_positions)  # How many trees have no position data at all? 89-->56 after keeping the flipped coordinates
 
 # combine XY positions from the GPS with converted positions
-gbif_pilas <- final_pila_positions %>% mutate(
+gbif_pilas <- final_pila_positions %>% 
+  mutate(
   verbatimLatitude = coalesce (Y, latitude),
-  verbatimLongitude = coalesce (X, longitude)
-)
-# ~~~~~~~~~~~~~~~~~~~~ Associated Trees ~~~~~~~~~~~~~~~~~~~~
+  verbatimLongitude = coalesce (X, longitude)) %>% 
+    select (occurrenceID, verbatimLatitude, verbatimLongitude)
+
+missing_positions <- gbif_pilas %>% filter(is.na(verbatimLatitude) & is.na(verbatimLongitude))
+## ~~~~~~~~~~~~~~~~~~~~ Associated Trees ~~~~~~~~~~~~~~~~~~~~
+
+# read in clean plot data
+plotData <- read.csv("/Users/jennifercribbs/Documents/YOSE/Analysis/MultipleDisturbances/dataSandbox/CleanData/PlotLevelData.csv")
+# read in tree data
+treeData <- read.csv("/Users/jennifercribbs/Documents/YOSE/Analysis/MultipleDisturbances/dataSandbox/CleanData/YOSE_cleanTreeList.csv")
 
 # join tree data with plotData
 treeData <- left_join(treeData, select(plotData, -date, -crew), by = "plotID")
-# need to check plot 74 tree 13--appears to have no position because dOut is NA
-#tree_positions <- tree_positions %>% filter(!is.na(tree_UTM_E) & !is.na(tree_UTM_N))
+# create a unique identifier
+treeData <- treeData %>% mutate(occurrenceID = paste("E", plotID, "-", "Tree", treeNum, sep = ""))
+
+# plot 74 tree 13--appears to have no position because dOut is NA
+# tree_positions <- tree_positions %>% filter(!is.na(tree_UTM_E) & !is.na(tree_UTM_N))
 # dOut was missed in the field, but neighboring trees are 1m apart (48.2 and 49.2 dOut), so a dOut estimate of 48.7 seems more reasonable than deleting the full record
 # impute 48.7 as best guess for the missing dOut value
 treeData <- treeData %>% 
-  mutate(dOut_m = if_else(plotID == 74 & treeNum == 13, 48.7, dOut_m))
+  mutate(dOut_m = if_else(occurrenceID == "E74-Tree13", 48.7, dOut_m))
 
 # Calculate tree positions
 tree_positions <- calculate_tree_positions(treeData)
@@ -397,26 +415,22 @@ tree_points <- tree_positions %>%
              crs = paste0("+proj=utm +zone=", unique(df$UTM_zone), " +datum=NAD83")) %>%
       st_transform(crs = 4326)  # Convert to lat/long
   })
+    
+# extract the latitude and longitude coordinates
+    tree_points <- tree_points %>%
+      mutate(
+        verbatimLatitude = st_coordinates(tree_points)[, 2],  # extract latitude
+        verbatimLongitude = st_coordinates(tree_points)[, 1]  # extract longitude
+      )
 
-# find non-numeric dOut values
-# 271 NAs + 3 trees in plot 75 with relative positions
-# NAs include pilas with estimated position and gps position
-pilaData %>%
-  filter(!grepl("^-?[0-9.]+$", dOut_m)) %>%
-  select(occurrenceID, dOut_m) %>%
-  distinct() %>%
-  print()
+# trim columns before binding with pilas
+tree_points_trimmed <- tree_points %>% select (occurrenceID, verbatimLatitude, verbatimLongitude) %>% st_drop_geometry()
 
-# Change dOut_m to numeric
-pilaData$dOut_m <- as.numeric(pilaData$dOut_m)
+# bind associated trees with pilas
+occurrence_positions <- rbind(gbif_pilas, tree_points_trimmed)
 
-# combine dSideR_m and dSideL_m into a single dSide column with checks
-pilaData <- pilaData %>%
-  mutate(dSide = case_when(
-    !is.na(dSideR_m) & dSideR_m >= 0 ~ dSideR_m,
-    !is.na(dSideL_m) & dSideL_m <= 0 ~ dSideL_m,
-    TRUE ~ NA_real_
-  ))
+# write out CSV with latitude and longitude for each tree (except 89 problem trees)
+write.csv(occurrence_positions, "/Users/jennifercribbs/Documents/YOSE/Analysis/MultipleDisturbances/outputSandbox/occurrence_positions.csv")
 
 #~~~~~~~~~~~~~~~~~~~~~ Mapping Trees ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Bring in the NPS boundary for YOSE
