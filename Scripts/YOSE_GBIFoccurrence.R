@@ -17,13 +17,13 @@ library(dplyr)
 library(tidyverse)
 
 # Set the working directory
-#setwd("/Users/jennifercribbs/Documents/YOSE/Analysis/MultipleDisturbances/")
-setwd("/Users/tazli/Downloads/YOSE_SugarPine/MultipleDisturbances")
+setwd("/Users/jennifercribbs/Documents/YOSE/Analysis/MultipleDisturbances/")
+#setwd("/Users/tazli/Downloads/YOSE_SugarPine/MultipleDisturbances")
 
 # Bring in the PILA data for each plot in the project folder from Google Sheets
 # setting the directory for data extraction--change to your local data directory
-#datadir <- "/Users/jennifercribbs/Documents/YOSE/Analysis/MultipleDisturbances/Data/RawData/YPE_Data"
-datadir <- "/Users/tazli/Downloads/YOSE_SugarPine/MultipleDisturbances/Data/RawData/YPE_Data"
+datadir <- "/Users/jennifercribbs/Documents/YOSE/Analysis/MultipleDisturbances/Data/RawData/YPE_Data"
+#datadir <- "/Users/tazli/Downloads/YOSE_SugarPine/MultipleDisturbances/Data/RawData/YPE_Data"
 
 # provide path for files in datadir
 folders <- list.dirs(datadir, full.names = TRUE)[-c(1,4)] # Ensure full path names are used
@@ -41,21 +41,14 @@ for (folder in folders) {
     # Read the Excel file
     xlsfile <- read_excel(paste0(folder,"/",file), na = "NA") %>%
       mutate_if(is.numeric, as.numeric) %>% # keeps numbers numeric
-      dplyr::select(plotID, plot_type, date, crew, trans_length, width, 
-                    slope, aspect, plot_azimuth,
-                    plot_beg_UTM_N, plot_beg_UTM_E, 
-                    plot_end_UTM_N, plot_end_UTM_E, 
-                    plot_notes, plot_elevation_ft, 
-                    ribes_50m, ribes_100m, ribes_150m, ribes_200m, 
-                    seedlings_50m, seedlings_100m, seedlings_150m, seedlings_200m,
-                    treeNum, species, DBH_cm, est_DBH_cm, height_m, est_height_m,
+      dplyr::select(plotID, crew, date, treeNum, species, 
+                    DBH_cm, est_DBH_cm, height_m, est_height_m,
                     pitchTubes, exitHoles,
                     activeBranchCanker, inactiveBranchCanker,
-                    activeBoleCanker, inactiveBoleCanker, flags, DTOP,
-                    percentLive, fire_scar, resistance, damageCodes, notes, 
-                    PILA_UTM_E, PILA_UTM_N, estimatedAccuracy_PILA_ft,
-                    dOut_m, dSideR_m, dSideL_m,
-                    est_dOut_m, est_dSideR, est_dSideL
+                    activeBoleCanker, inactiveBoleCanker, 
+                    flags, DTOP,
+                    percentLive, fire_scar, resistance,
+                    damageCodes, notes
       )
     pila_list <- rbind(pila_list, xlsfile)
     
@@ -558,7 +551,18 @@ gbifOccurrence <- gbifOccurrence %>%
       paste(codes, collapse = "|")
     })
   )
-write.csv(gbifOccurrence, "YOSE_GBIFoccurrence.csv", row.names = FALSE) # don't save first column
+# bring in latitude and longitude from 1_SpatialDataWrangling.R
+occurrence_positions <- read.csv("/Users/jennifercribbs/Documents/YOSE/Analysis/MultipleDisturbances/outputSandbox/occurrence_positions.csv")
+
+# strip away any hidden characters
+gbifOccurrence$occurrenceID <- trimws(gbifOccurrence$occurrenceID)
+occurrence_positions$occurrenceID <- trimws(occurrence_positions$occurrenceID)
+
+# join with occurrence data
+gbifOccurrenceTest <- left_join(gbifOccurrence, occurrence_positions, by = "occurrenceID")
+
+# write out results for occurrence tab
+write.csv(gbifOccurrenceTest, "/Users/jennifercribbs/Documents/YOSE/Analysis/MultipleDisturbances/outputSandbox/YOSE_GBIFoccurrence.csv", row.names = FALSE) # don't save first column
 
 
 

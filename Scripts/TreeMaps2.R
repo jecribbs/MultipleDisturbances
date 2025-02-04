@@ -225,8 +225,7 @@ tree_UTM_E = start_E + x_offset  # Final easting
 tree_UTM_N = start_N + y_offset   # Final northing
 print(list(tree_UTM_E = tree_UTM_E, tree_UTM_N = tree_UTM_N))
 } 
-# use relative tree calculation for plot 75 tree 19
-relativeTreeCalculation(283229, 4201801, 28, 160) # 283333, 4201923
+
 
 # Create spatial points for gps pila and convert to lat/long (WGS84)
 pila_points_estimated <- pila_points_estimated %>%
