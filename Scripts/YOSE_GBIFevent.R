@@ -5,8 +5,9 @@
 # Overall Input: Read in csv files for plot-level data, fire severity data, and PRISM data
 # Overall Output: Clean csv with a row for each plot and columns matching GBIF columns, so the output can be pasted into NPS template Event tab
 
+library(readxl)
 # read in clean plot data
-plotData <- read.csv("/Users/jennifercribbs/Documents/YOSE/Analysis/MultipleDisturbances/Data/CleanData/PlotLevelData.csv")
+plotData <- read.csv("/Users/jennifercribbs/Documents/YOSE/Analysis/MultipleDisturbances/dataSandbox/CleanData/PlotLevelData.csv")
 
 # bring in PRISM data
 prismData <- read.csv("/Users/jennifercribbs/Documents/YOSE/Analysis/MultipleDisturbances/Data/CleanData/PRISMdata_YOSEonlyApril29_24.csv")
