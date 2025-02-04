@@ -116,7 +116,7 @@ pila_list <- pila_list %>%
 
 pila_list <- pila_list %>% 
   mutate(fireDamage = case_when(
-    (as.numeric(boleChar) > 0) ~ "FIRE",
+    suppressWarnings(as.numeric(boleChar) > 0) ~ "FIRE",
     TRUE ~ fireDamage
   ))
 
@@ -203,29 +203,34 @@ pila_list <- pila_list %>%
     (twinDamage != "") ~ paste(damageCodes, twinDamage, sep = "|"),
     TRUE ~ damageCodes))
 
-#------BOLE CHAR COLUMN--------
-#based on the current boleChar column, create boleCharText and boleCharNum
-pila_list_char <- mutate(pila_list,
-                    boleCharText = "",
-                    boleCharNum = "")
+#ADD IN SOME DTOPs
+#case_when (dtopColumn=(Y|1) && str_detect(dtop in damageCodes) == F, paste(DTOP, sep = |))
 
-#boleCharLog is Y if num >0 or if Y; N if N or num = 0; NA if NA, else ?
-pila_list_char <- pila_list_char %>%
+#------BOLE CHAR COLUMN--------
+
+#based on the current boleChar column, create boleChar_text and boleChar_numeric
+pila_list <- mutate(pila_list,
+                    boleChar_text = "",
+                    boleChar_numeric = "")
+
+#boleCharText is Y if num >0 or if Y; N if N or num = 0; NA if NA, else ?
+pila_list <- pila_list %>%
   mutate(
-    boleCharNum = suppressWarnings(as.numeric(boleChar)),  #this leaves Ns in the original column as NAs in the boleCharNum column
-    boleCharText = case_when(
-      !is.na(boleCharNum) & boleCharNum > 0 ~ "Y",
-      !is.na(boleCharNum) & boleCharNum == 0 ~ "N",
+    boleChar_numeric = case_when(
+      suppressWarnings(!is.na(as.numeric(boleChar))) ~ suppressWarnings(as.numeric(boleChar)),
+      boleChar == "N" ~ as.numeric(0)
+      boleChar == "<10" ~ as.numeric(10)
+      TRUE ~ NA),
+    boleChar_text = case_when(
+      !is.na(boleChar_numeric) & boleChar_numeric > 0 ~ "Y",
+      !is.na(boleChar_numeric) & boleChar_numeric == 0 ~ "N",
       boleChar == "Y" ~ "Y",
       boleChar == "N" ~ "N",
-      boleChar == "<10" ~ "Y", #what to do with boleCharNum in this case?
+      boleChar == "<10" ~ "Y",
       is.na(boleChar) ~ NA_character_,
       TRUE ~ NA_character_ #this does not have any entries, and shouldn't.
     )
   ) 
-
-pila_list_char_test <- pila_list_char %>% 
-  select(eventID, treeNum, diameter, height, boleChar, boleCharText, boleCharNum, damageCodes)
 
 # add GBIF columns to match occurrence tab template
 pila_list <- pila_list %>% 
@@ -277,7 +282,7 @@ cleanPILAdata <- pila_list %>%
          diameter, height, pitchTubes, exitHoles, 
          activeBranchCanker, inactiveBranchCanker, 
          activeBoleCanker, inactiveBoleCanker, 
-         deadTop, percentLive, boleChar, damageCodes)
+         deadTop, percentLive, boleChar_text, boleChar_numeric, damageCodes)
 
 # Part3: YOSE PILA Data Export -------------------------
 
