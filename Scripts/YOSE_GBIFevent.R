@@ -9,25 +9,22 @@ library(readxl)
 # read in clean plot data
 plotData <- read.csv("/Users/jennifercribbs/Documents/YOSE/Analysis/MultipleDisturbances/dataSandbox/CleanData/PlotLevelData.csv")
 
-# bring in PRISM data
-prismData <- read.csv("/Users/jennifercribbs/Documents/YOSE/Analysis/MultipleDisturbances/Data/CleanData/PRISMdata_YOSEonlyApril29_24.csv")
-
 # bring in merged ground and MTBS fire severity data
-fireData <- read.csv("/Users/jennifercribbs/Documents/YOSE/Analysis/MultipleDisturbances/fireCompare_22052024.csv")
+fireData <- read.csv("/Users/jennifercribbs/Documents/YOSE/Analysis/MultipleDisturbances/dataSandbox/fireCompare_22052024.csv")
 
 # bring in estimated effort
-effortData <- read.csv("/Users/jennifercribbs/Documents/YOSE/Analysis/MultipleDisturbances/Data/CleanData/estimatedEffort.csv") %>% 
+effortData <- read.csv("/Users/jennifercribbs/Documents/YOSE/Analysis/MultipleDisturbances/dataSandbox/CleanData/estimatedEffort.csv") %>% 
   rename(plotID = "YPE.Plot.ID", effort = "Estimated.Effort..in.hrs.",
          startDateTime = "Start.Date.time",
          endDateTime = "End.Date.time") %>% 
   select(plotID, effort, startDateTime, endDateTime)
 
 # join prism and fire data then join to plot data
-prismFire <- left_join(fireData, prismData, by = c("plotID" = "PlotID"))
-data <- left_join(plotData, prismFire)
+#prismFire <- left_join(fireData, prismData, by = c("plotID" = "PlotID"))
+plotFiredata <- left_join(plotData, fireData)
 
 # add estimated effort data
-combinedData <- left_join(data, effortData)
+combinedData <- left_join(plotFiredata, effortData)
 
 # rename and add columns to match template
 eventData <- combinedData %>% rename(eventID = plotID, 
@@ -47,9 +44,9 @@ eventData <- combinedData %>% rename(eventID = plotID,
          stateProvince = "California",
          county = "Mariposa", # Mt. Raymond and plot south of fish camp are in Madera and several in Tuolumne
          habitatDescription = "mixed-conifer forest",
-         verbatimCoordinateSystem = "UTM",
-         verbatimSRS = "EPSG:26911", # 26910 for zone 10 plots or 4326 for lat long for all
-         verbatimDatum = "NAD 83",# WGS84 for lat/long
+         verbatimCoordinateSystem = "decimal degrees",
+         verbatimSRS = "EPSG:4326", # 26910 for zone 10 plots or 4326 for lat long for all
+         verbatimDatum = "WGS84",# WGS84 for lat/long
          coordinateUncertaintyinMeters = "", # maybe add GPS field uncertainty with metadata notes 
          coordinatePrecision = "", # this may be a feature of the GPS units
          publicDisplay = "yes",
