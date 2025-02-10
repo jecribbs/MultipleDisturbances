@@ -1,7 +1,7 @@
 # GBIF: Occurence Tab for PILA and Associated Trees
 # Authors: Jenny Cribbs, Tazlina Dentinger
 # Date created: 06 December 2024
-# Updated: 30 January 2025, TMD
+# Updated: 10 February 2025, TMD
 
 # Overall Input: Read in PILA and Associated Tree data from Excel files downloaded from Google Sheets using for loop
 # Code Description: clean data with a row for each tree with a unique occurrence ID and columns matching GBIF columns, so the output can be pasted into NPS template occurrence tab
@@ -17,13 +17,13 @@ library(dplyr)
 library(tidyverse)
 
 # Set the working directory
-setwd("/Users/jennifercribbs/Documents/YOSE/Analysis/MultipleDisturbances/")
-#setwd("/Users/tazli/Downloads/YOSE_SugarPine/MultipleDisturbances")
+#setwd("/Users/jennifercribbs/Documents/YOSE/Analysis/MultipleDisturbances/")
+setwd("/Users/tazli/Downloads/YOSE_SugarPine/MultipleDisturbances")
 
 # Bring in the PILA data for each plot in the project folder from Google Sheets
 # setting the directory for data extraction--change to your local data directory
-datadir <- "/Users/jennifercribbs/Documents/YOSE/Analysis/MultipleDisturbances/Data/RawData/YPE_Data"
-#datadir <- "/Users/tazli/Downloads/YOSE_SugarPine/MultipleDisturbances/Data/RawData/YPE_Data"
+#datadir <- "/Users/jennifercribbs/Documents/YOSE/Analysis/MultipleDisturbances/Data/RawData/YPE_Data"
+datadir <- "/Users/tazli/Downloads/YOSE_SugarPine/MultipleDisturbances/Data/RawData/YPE_Data"
 
 # provide path for files in datadir
 folders <- list.dirs(datadir, full.names = TRUE)[-c(1,4)] # Ensure full path names are used
@@ -196,8 +196,13 @@ pila_list <- pila_list %>%
     (twinDamage != "") ~ paste(damageCodes, twinDamage, sep = "|"),
     TRUE ~ damageCodes))
 
-#ADD IN SOME DTOPs
-#case_when (dtopColumn=(Y|1) && str_detect(dtop in damageCodes) == F, paste(DTOP, sep = |))
+#add DTOPs from deadTop column to the damageCodes column. 
+pila_list_temp <- pila_list %>% 
+  mutate(damageCodes = case_when(
+    (deadTop %in% c("1", "1.0", "Y")) & (!str_detect(damageCodes, "DTOP")) ~ paste(damageCodes, "DTOP", sep = "|"),
+    TRUE ~ damageCodes
+  ))
+
 
 #------BOLE CHAR COLUMN--------
 
@@ -258,8 +263,6 @@ pila_list <- pila_list %>%
          recordNumber = "",
          organismRemarks = "",
          identificationID = "")
-
-
 
 # select columns for GBIF occurrence tab
 cleanPILAdata <- pila_list %>% 
