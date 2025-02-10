@@ -429,11 +429,74 @@ missing_positions <- gbif_pilas %>% filter(is.na(verbatimLatitude) & is.na(verba
 
 # read in clean plot data
 plotData <- read.csv("/Users/jennifercribbs/Documents/YOSE/Analysis/MultipleDisturbances/dataSandbox/CleanData/PlotLevelData.csv")
-# read in tree data--need to update column names to match function
-treeData <- read.csv("/Users/jennifercribbs/Documents/YOSE/Analysis/MultipleDisturbances/dataSandbox/CleanData/YOSE_cleanTreeList.csv")
+
+# provide path for files in datadir
+folders <- list.dirs(datadir, full.names = TRUE)[-c(1,4)] # Ensure full path names are used
+
+# initialize an empty list to store data for each plot
+trees <- data.frame()
+
+# loop through each folder
+for (folder in folders) {
+  # list all files in the folder
+  files <- list.files(folder, pattern = "Tree") # choose Tree data only
+  
+  # Loop through each file
+  for(file in files) {
+    # Read the Excel file
+    xlsfile <- read_excel(paste0(folder,"/",file), na = "NA") %>%
+      mutate_if(is.numeric, as.numeric) %>% # keeps numbers numeric
+      dplyr::select(plot, date, crew,
+                    treeNum, species, DBH_cm, height_m,
+                    dOut_m, dSideR_m, dSideL_m,
+                    percentLive, damageCodes, notes
+      )
+    trees <- rbind(trees, xlsfile)
+    
+  }
+}
+
+# check data types
+summary(trees)
+
+# Part4: Associated Tree Data Wrangling -------------------------
+
+# fix plotID naming and make dOut consistent with function
+trees <- trees %>% 
+  rename(plotID = plot,
+         dOut_final = dOut_m) # plotID entered as plot for Trees
+
+# convert dSide Left to numeric 
+trees$dSideL_m <- as.numeric(trees$dSideL_m) # likely dash entry error
+
+# combine dSideR_m and dSideL_m into a single dSide_final column with checks
+trees <- trees %>%
+  mutate(dSide_final = case_when(
+    !is.na(dSideR_m) & dSideR_m >= 0 ~ dSideR_m,
+    !is.na(dSideL_m) & dSideL_m <= 0 ~ dSideL_m,
+    TRUE ~ NA_real_
+  ))
+summary(trees)
+
+#correct misspellings and inconsistencies in tree_list
+trees <- trees %>%
+  mutate(species = case_when(
+    species == "PYGE" ~ "PIJE",
+    species %in% c("unknown", "UNK", "UNKNOWN", "Charcol", "Unknown") ~ "UNKNOWN",
+    TRUE ~ species
+  ))
+
+# check species field again
+unique(trees$species)
+
+#remove SALIX and CONU because they should be shrubs 
+# although some are tree-like, these species were likely not assessed as trees uniformly across the plots
+trees <- trees %>% 
+  filter(species != "CONU") %>% 
+  filter(species != "SALIX") # removes only 2 records total (3309 to 3307)
 
 # join tree data with plotData
-treeData <- left_join(treeData, select(plotData, -date, -crew), by = "plotID")
+treeData <- left_join(trees, select(plotData, -date, -crew), by = "plotID")
 # create a unique identifier
 treeData <- treeData %>% mutate(occurrenceID = paste("E", plotID, "-", "Tree", treeNum, sep = ""))
 
@@ -442,12 +505,17 @@ treeData <- treeData %>% mutate(occurrenceID = paste("E", plotID, "-", "Tree", t
 # dOut was missed in the field, but neighboring trees are 1m apart (48.2 and 49.2 dOut), so a dOut estimate of 48.7 seems more reasonable than deleting the full record
 # impute 48.7 as best guess for the missing dOut value
 treeData <- treeData %>% 
-  mutate(dOut_m = if_else(occurrenceID == "E74-Tree13", 48.7, dOut_m))
+  mutate(dOut_final = if_else(occurrenceID == "E74-Tree13", 48.7, dOut_final))
 
-# Calculate tree positions
+# calculate tree positions
 tree_positions <- calculate_tree_positions(treeData)
 
-# Create spatial points for trees and convert to lat/long (WGS84)
+# check for missing positions--none after imputation
+missing_positions <- tree_positions %>%
+  filter(is.na(tree_UTM_E) & is.na(tree_UTM_N))
+nrow(missing_positions)
+
+# create spatial points for trees and convert to lat/long (WGS84)
 tree_points <- tree_positions %>%
   group_split(UTM_zone) %>%
   map_dfr(function(df) {
@@ -469,6 +537,11 @@ tree_points_trimmed <- tree_points %>% select (occurrenceID, verbatimLatitude, v
 
 # bind associated trees with pilas
 occurrence_positions <- rbind(gbif_pilas, tree_points_trimmed)
+
+# check for missing positions--still 16 from the PILAs
+missing_positions <- occurrence_positions %>%
+  filter(is.na(verbatimLatitude) & is.na(verbatimLongitude))
+nrow(missing_positions)
 
 # write out CSV with latitude and longitude for each tree (except 89 problem trees)
 write.csv(occurrence_positions, "/Users/jennifercribbs/Documents/YOSE/Analysis/MultipleDisturbances/outputSandbox/occurrence_positions.csv")
