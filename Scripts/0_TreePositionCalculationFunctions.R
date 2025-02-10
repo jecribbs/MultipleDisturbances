@@ -19,8 +19,8 @@
 calculate_tree_positions <- function(data) {
   data %>%
     mutate(
-      hypotenuse = sqrt(dOut_m^2 + dSide^2),  # Step 1: Calculate hypotenuse
-      angle_dSide = atan2(dSide, dOut_m),     # Step 2: Calculate angle opposite Dside
+      hypotenuse = sqrt(dOut_final^2 + dSide_final^2),  # Step 1: Calculate hypotenuse
+      angle_dSide = atan2(dSide_final, dOut_final),     # Step 2: Calculate angle opposite Dside
       azimuth_rad = (plot_azimuth + 12.5)  * pi / 180,         # Convert azimuth from magnetic to true and degrees to radians
       adjusted_angle = azimuth_rad + angle_dSide, # Step 3: Adjust azimuth by angle_Dside
       x_offset = hypotenuse * sin(adjusted_angle), # Step 4: Calculate x offset

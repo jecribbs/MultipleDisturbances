@@ -1,7 +1,9 @@
-# Tree Map 
-# 30 January 2025
+# Spatial Data Wrangling 
+# 01 January 2025
 # Author: Jenny Cribbs
+
 # Inputs: plot data from the event ID script, tree data and plot data read in from the Google Sheets
+
 # Code Description: (1) spatial data wrangling to use plot beginning waypoints in utms to calculate plot end waypoints in utms based on azimuth and transect length in meters (2) visualize points (3) choose calculated or gps waypoint to get one end point per plot (4) visualize result (5) convert all points to decimal degrees. (6) calculate utms for associated trees based on dOut and dSide (7) calculate utms for pila based on dOut and dSide (8) map all trees and pila (from gps and xy)
 # Output: (1) a csv file with lat/long coordinates for each plot beginning and end point. (2) a csv file with lat/long coordinates for each tree.
 
@@ -23,8 +25,8 @@ setwd("/Users/jennifercribbs/Documents/YOSE/Analysis/MultipleDisturbances/")
 
 # ~~~~~~~~~~~~~~~~~~~~ PILAs ~~~~~~~~~~~~~~~~~~~~
 # Bring in the PILA data for each plot in the project folder from Google Sheets
-# setting the directory for data extraction--change to your local data directory
-datadir <- "/Users/jennifercribbs/Documents/YOSE/Analysis/MultipleDisturbances/dataSandbox/RawData/YPE_Data"
+# setting the directory for data extraction--change to your local data directory and make sure it has changes from 2/3/2025
+datadir <- "/Users/jennifercribbs/Documents/YOSE/Analysis/MultipleDisturbances/Data/RawData/YPE_Data"
 
 #datadir <- "/Users/tazli/Downloads/YOSE_SugarPine/MultipleDisturbances/Data/RawData/YPE_Data"
 # provide path for files in datadir
@@ -130,11 +132,10 @@ pilas$PILA_UTM_E <- as.numeric(pilas$PILA_UTM_E)
 
 # bring in kml files from gps units
 kml_66i <- st_read("/Users/jennifercribbs/Documents/YOSE/Waypoints/Recently Read from GPSMAP 66i (Unit ID 3404379582).kml") %>% 
-  mutate(Source = "66i",
-         kml_id = paste(Source, Name))
+  mutate(Source = "66i")
 kml_66sr <- st_read("/Users/jennifercribbs/Documents/YOSE/Waypoints/Recently Read from GPSMAP 66sr (Unit ID 3377332670).kml") %>% 
-  mutate(Source = "66sr", 
-         kml_id = paste(Source, Name))
+  mutate(Source = "66sr")
+
 # create one kml from both units
 kml_sf <- rbind(kml_66i, kml_66sr)
 st_crs(kml_sf) # already lat/long WGS84 decimal degrees
@@ -153,7 +154,10 @@ i <- filter(pilas, GPSdevice == "66i")
 sr <- filter(pilas, GPSdevice == "66sr")
 # there is no si unit--but waypoint name should allow for matching
 si <- filter(pilas, GPSdevice == "66si")
-si_check <- si %>% select(occurrenceID, GPSdevice, dOut_m, dSide, PILA_waypoint, PILA_UTM_E, PILA_UTM_N, crew, date, plotID)
+si_check <- si %>% select(occurrenceID, GPSdevice, dOut_m, dSide_m, PILA_waypoint, PILA_UTM_E, PILA_UTM_N, crew, date, plotID)
+pilas <- pilas %>%
+  mutate(GPSdevice = ifelse(GPSdevice == "66si", "66i", GPSdevice))
+
 # 30 points were taken on the inreach that was returned to UCD
 # fortunately they are entered as utms, so hopefully no errors 
 # we will not be able increase precision by using the device directly, but shouldn't be a big deal
@@ -166,9 +170,20 @@ inreach <- filter(pilas, GPSdevice == "inreach")
 # this should exclude points from other projects
 kml_filtered <- kml[!grepl("[a-zA-Z]", kml$Name), ]
 
+# deal with 66i names that end in 1--we don't know why the GPS did this
+# Remove trailing "1" from the first 190 lines
+# hard coding works fine
+#kml_filtered$Name[1:190] <- gsub("1$", "", kml_filtered$Name[1:190])
+# but substr is much better 
+# substr keeps the subset between the index values specified in arguments 2 (first) and 3 (last)
+kml_filtered$Name <- substr(kml_filtered$Name, 1, 4)
+
+kml_filtered <- kml_filtered %>% 
+  mutate(kml_id = paste(Source, Name, sep = "_"))
+
 # Check rows with NAs prior to digit normalization (1490)
 sum(is.na(pilas$PILA_waypoint))
-# Check rows with GPSdevice == "66i" and valid PILA_waypoint (187)
+# Check rows with GPSdevice == "66i" and valid PILA_waypoint (195)
 sum(!is.na(pilas$PILA_waypoint) & pilas$GPSdevice == "66i")
 # Check rows with GPSdevice == "66sr" and valid PILA_waypoint (56)
 sum(!is.na(pilas$PILA_waypoint) & pilas$GPSdevice == "66sr")
@@ -176,21 +191,26 @@ sum(!is.na(pilas$PILA_waypoint) & pilas$GPSdevice == "66sr")
 # Replace entries that are empty, all whitespace, or variations of "NA" with true NA
 pilas$PILA_waypoint <- ifelse(grepl("^\\s*NA\\s*$|^\\s*$", 
                                     pilas$PILA_waypoint, ignore.case = TRUE), 
-                              NA, pilas$PILA_waypoint)
+                              NA_character_, pilas$PILA_waypoint)
 # check that cleaning worked
 # Verify no problematic strings remain
 any(grepl("^\\s*NA\\s*$|^\\s*$", pilas$PILA_waypoint, ignore.case = TRUE))  # Should return FALSE
 
 # normalize data entry of PILA waypoint names based on the device source
-# for 66i: ensure 5 digits
+# for 66i: ensure 4 digits
 pilas$PILA_waypoint[!is.na(pilas$PILA_waypoint) & pilas$GPSdevice == "66i"] <- 
-  formatC(as.numeric(pilas$PILA_waypoint[!is.na(pilas$PILA_waypoint) & pilas$GPSdevice == "66i"]), width = 5, flag = "0")
+  formatC(as.numeric(pilas$PILA_waypoint[!is.na(pilas$PILA_waypoint) & pilas$GPSdevice == "66i"]), width = 4, flag = "0")
 # for 66sr: ensure 4 digits
-pilas$PILA_waypoint[!is.na(pilas$PILA_waypoint) & pilas$GPSdevice == "66sr"] <- 
+pilas$PILA_waypoint[!is.na(pilas$PILA_waypoint) & pilas$GPSdevice == "66sr"] <-
   formatC(as.numeric(pilas$PILA_waypoint[!is.na(pilas$PILA_waypoint) & pilas$GPSdevice == "66sr"]), width = 4, flag = "0")
 
+# create kml_id
+pilas <- pilas %>% 
+  mutate(kml_id = paste(GPSdevice, PILA_waypoint, sep = "_"))
+# clean up to clearly name true NAs
+pilas$kml_id <- ifelse(grepl(pattern ="_NA", pilas$kml_id), NA_character_, pilas$kml_id)
 # investigae duplicate waypoints
-non_na_duplicates <- pilas$PILA_waypoint[duplicated(pilas$PILA_waypoint) & !is.na(pilas$PILA_waypoint)]
+non_na_duplicates <- pilas$kml_id[duplicated(pilas$kml_id) & !is.na(pilas$kml_id)]
 unique(non_na_duplicates)
 # all three cases seem to be different trees at a similar point
 point00118 <- pilas %>% filter(PILA_waypoint == "00118") %>% select(occurrenceID, PILA_waypoint, DBH_cm, height_m, notes) # gives relative position from a large ABCO snag, but would need to find this
@@ -201,7 +221,8 @@ point00060 <- pilas %>% filter(PILA_waypoint == "00060") %>% select(occurrenceID
 # all seem to be trees that should share a waypoint
 
 # join pila and kml data
-pilas_kml <- left_join(pilas, kml_filtered, by = c("PILA_waypoint" = "Name")) 
+pilas_kml <- left_join(pilas, kml_filtered, by = "kml_id")
+
 # lots of NAs check the kml_ids
 table(pilas$PILA_waypoint %in% kml_filtered$Name)
 table(kml_filtered$Name %in% pilas$PILA_waypoint)
@@ -247,11 +268,6 @@ pilas_kml <- pilas_kml %>%
   ))
 summary(pilas_kml)
 
-# coerce estimated columns to numeric (NAs introduced from notes relative to WP29--corrected in next line)
-pilas_kml <- pilas_kml %>% mutate(
-  est_dOut_m = as.numeric(est_dOut_m),
-  est_dSideL = as.numeric(est_dSideL)
-) 
 # Add position information for unusual cases
 # modify specific values for eventID == "E58-PILA16"--calculated by hand using trig from WP29 as described in the notes
 pilas_kml <- pilas_kml %>%
@@ -259,6 +275,12 @@ pilas_kml <- pilas_kml %>%
     est_dOut_m = if_else(occurrenceID == "E58-PILA16", 63.5, est_dOut_m),  # Modify dOut_m
     est_dSideL = if_else(occurrenceID == "E58-PILA16", -47, est_dSideL)  # Modify dSide
   )
+
+# coerce estimated columns to numeric 
+pilas_kml <- pilas_kml %>% mutate(
+  est_dOut_m = as.numeric(est_dOut_m),
+  est_dSideL = as.numeric(est_dSideL)
+) 
 
 # combine right and left sides 
 pilas_kml <- pilas_kml %>% mutate(est_dSide = case_when(
@@ -294,19 +316,19 @@ pilas_kml <- pilas_kml %>%
   )
 
 # check if 'dSide' exists and drop it if necessary
-if ("dSide" %in% colnames(pilas_kml)) {
-  pilas_kml <- pilas_kml %>% select(-dSide) # Drop old version
-}
+#if ("dSide" %in% colnames(pilas_kml)) {
+  #pilas_kml <- pilas_kml %>% select(-dSide) # Drop old version
+#}
 # rename dSide_final to match function
-pilas_kml_final <- pilas_kml %>%
-  rename(dSide = dSide_final)
+#pilas_kml_final <- pilas_kml %>%
+  #rename(dSide = dSide_final)
 
 # plot UTM columns need to be numeric 
-pilas_kml_final$plot_beg_UTM_E <- as.numeric(pilas_kml_final$plot_beg_UTM_E)
-pilas_kml_final$plot_beg_UTM_N <- as.numeric(pilas_kml_final$plot_beg_UTM_N)
+pilas_kml$plot_beg_UTM_E <- as.numeric(pilas_kml$plot_beg_UTM_E)
+pilas_kml$plot_beg_UTM_N <- as.numeric(pilas_kml$plot_beg_UTM_N)
 
 # run calculate positions function to convert dOut and dSide to UTMs
-pila_positions <- calculate_tree_positions(pilas_kml_final)
+pila_positions <- calculate_tree_positions(pilas_kml)
 
 # combine UTMs from dOut, dSide and GPS transcriptions
 pila_positions <- pila_positions %>%
@@ -384,11 +406,30 @@ gbif_pilas <- final_pila_positions %>%
     select (occurrenceID, verbatimLatitude, verbatimLongitude)
 
 missing_positions <- gbif_pilas %>% filter(is.na(verbatimLatitude) & is.na(verbatimLongitude))
+
+# E13-PILA 36 has a measured dSide (-39) and an estimated dOut (156)--> check this is fixed after estimated chunk--> resolved
+# E30 PILAs 7-12 were all estimated for dOut and dSide--> resolved
+# E31 PILAs 1-7 have a plot note estimated with trig, so entered as estimated--> resolved
+# E36 PILA 100 has dOut, but dSide missed in the field--adjacent trees seem close, may be able to impute 
+# E58 PILA 16 had +10 and +8 relative to WP29, so imputation didn't work--still not working
+# E6 PILA 27-33 all have waypoints with a note past the - end (waypoints 319-324)
+# E60 PILA 18-27--> UCSB plot check Google Sheet--estimated dOuts, but no sides entered
+# E7 no PILA
+# E72 PILA 29 dSide missed in the field (good chance the dSide is between 3m and 0 because negative/left side is lines out and the prior tree was 2.9)
+# E73 PILA 36 and 37 all measurements including position estimated after the fact--> resolved as estimates
+# E8 no PILA
+# Conclusion is many estimated positions are not making it through--> resolved
+# Coalesce does not seem to be prioritizing the XY straight from the GPS and does not even take some positions when no other option is available--> not sure about prioritization, but at least filling in waypoint names only with coordinates
+# 16 missing now, 3 are plots with no PILA
+# plot 60 has 10 PILA with estimated dOut and no estimated dSide
+# E58 PILA16 imputation is not working
+# 2 have dSide missed in the field--imputation sketchy, but maybe workable as an estimate
+
 ## ~~~~~~~~~~~~~~~~~~~~ Associated Trees ~~~~~~~~~~~~~~~~~~~~
 
 # read in clean plot data
 plotData <- read.csv("/Users/jennifercribbs/Documents/YOSE/Analysis/MultipleDisturbances/dataSandbox/CleanData/PlotLevelData.csv")
-# read in tree data
+# read in tree data--need to update column names to match function
 treeData <- read.csv("/Users/jennifercribbs/Documents/YOSE/Analysis/MultipleDisturbances/dataSandbox/CleanData/YOSE_cleanTreeList.csv")
 
 # join tree data with plotData
