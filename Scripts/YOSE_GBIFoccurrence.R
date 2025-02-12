@@ -278,7 +278,7 @@ cleanPILAdata <- pila_list %>%
          diameter, height, pitchTubes, exitHoles, 
          activeBranchCanker, inactiveBranchCanker, 
          activeBoleCanker, inactiveBoleCanker, 
-         deadTop, percentLive, boleChar_text, boleChar_numeric, damageCodes)
+         percentLive, boleChar_text, boleChar_numeric, damageCodes)
 
 # Part3: YOSE PILA Data Export -------------------------
 
