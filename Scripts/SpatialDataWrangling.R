@@ -256,9 +256,25 @@ table(grepl("[[:cntrl:]]", kml_filtered$Name))
 # E73-PILA 30 has dOut in addition to waypoint name and UTMs--try using UTMs
 # E73 PILAs 36 and 37 have estimated position information
 
+# Add position information for unusual cases
+# modify specific values for eventID == "E58-PILA16"--calculated by hand using trig from WP29 as described in the notes
+pilas_kml <- pilas_kml %>%
+  mutate(
+    est_dOut_m = if_else(occurrenceID == "E58-PILA16", 63.5, est_dOut_m),  # Modify dOut_m
+    est_dSideL = if_else(occurrenceID == "E58-PILA16", -47, est_dSideL)  # Modify dSide
+  )
+
+# modify specific values for eventID == "E36-PILA100"--imputed dSide after the fact based nearby trees. This was apparently a sapling in a cluster. Position error likely within 10m, but may not match accuracy of other trees. 
+pilas_kml <- pilas_kml %>%
+  mutate(
+    est_dSideR = if_else(occurrenceID == "E36-PILA100", 5, est_dSideR)  # Modify dSide
+  )
+
 # fix incorrect data entry for positive dSideL values (manually reviewed to ensure this was the problem)
 pilas_kml <- pilas_kml %>%
-  mutate(dSideL_m = if_else(!is.na(dSideL_m) & dSideL_m > 0, -dSideL_m, dSideL_m))
+  mutate(dSideL_m = if_else(!is.na(dSideL_m) & dSideL_m > 0, -dSideL_m, dSideL_m),
+         est_dSideL = if_else(!is.na(est_dSideL) & est_dSideL > 0, -est_dSideL, est_dSideL))
+
 # combine right and left sides
 pilas_kml <- pilas_kml %>%
   mutate(dSide_combined = case_when(
@@ -268,25 +284,17 @@ pilas_kml <- pilas_kml %>%
   ))
 summary(pilas_kml)
 
-# Add position information for unusual cases
-# modify specific values for eventID == "E58-PILA16"--calculated by hand using trig from WP29 as described in the notes
-pilas_kml <- pilas_kml %>%
-  mutate(
-    est_dOut_m = if_else(occurrenceID == "E58-PILA16", 63.5, est_dOut_m),  # Modify dOut_m
-    est_dSideL = if_else(occurrenceID == "E58-PILA16", -47, est_dSideL)  # Modify dSide
-  )
+# combine right and left sides 
+pilas_kml <- pilas_kml %>% mutate(est_dSide = case_when(
+  !is.na(est_dSideR) & est_dSideR >= 0 ~ est_dSideR,
+  !is.na(est_dSideL) & est_dSideL <= 0 ~ est_dSideL,
+  TRUE ~ NA_real_))
 
 # coerce estimated columns to numeric 
 pilas_kml <- pilas_kml %>% mutate(
   est_dOut_m = as.numeric(est_dOut_m),
   est_dSideL = as.numeric(est_dSideL)
 ) 
-
-# combine right and left sides 
-pilas_kml <- pilas_kml %>% mutate(est_dSide = case_when(
-  !is.na(est_dSideR) & est_dSideR >= 0 ~ est_dSideR,
-  !is.na(est_dSideL) & est_dSideL <= 0 ~ est_dSideL,
-  TRUE ~ NA_real_))
 
 # finalize dSide by prioritizing measured over estimated values
 pilas_kml <- pilas_kml %>% 
@@ -555,40 +563,33 @@ nps <- st_transform(nps, crs = 4326)
 counties <- st_read("/Users/jennifercribbs/Documents/YOSE/Analysis/MultipleDisturbances/dataSandbox/tl_2024_us_county/tl_2024_us_county.shp") %>% filter(NAME == "Mariposa" | NAME == "Madera" | NAME == "Tuolumne")
 # Reproject county boundaries to lat/long
 counties <- st_transform(counties, crs = 4326)
-# Read KML files to bring in gps points
-kml_66i <- st_read("/Users/jennifercribbs/Documents/YOSE/Waypoints/Recently Read from GPSMAP 66i (Unit ID 3404379582).kml") %>% 
-  mutate(Source = "66i",
-         kml_id = paste(Source, Name))
-kml_66sr <- st_read("/Users/jennifercribbs/Documents/YOSE/Waypoints/Recently Read from GPSMAP 66sr (Unit ID 3377332670).kml") %>% 
-  mutate(Source = "66sr", 
-         kml_id = paste(Source, Name))
-# create one kml from both units
-kml <- rbind(kml_66i, kml_66sr)
-st_crs(kml) # also WGS84
 
-# Map pila and non-pila trees with plot points and gps points
+# filter out missing positions
+occurrences <-  occurrence_positions %>%
+  filter(!is.na(verbatimLatitude) & !is.na(verbatimLongitude)) 
+
+occurrences_sf <- st_as_sf(occurrences, coords = c("verbatimLongitude", "verbatimLatitude"), crs = 4326)
+# Map all trees and gps points
+
 tmap_mode("view")
 tm_shape(nps) +
   tm_polygons(col = "gray",
               title = "Yosemite") +
-  tm_shape(kml) +
+  tm_shape(kml_sf) +
   tm_dots(col = "black") +
-  tm_shape(lat_long) +
-  tm_dots(col = "magenta") +
-  tm_shape(pila_points_xy) +
-  tm_dots(col = "purple") +
-  tm_shape(tree_points) +
-  tm_dots(col = "darkgreen") +
-  tm_shape(plotBeg_sf) +
-  tm_dots(col = "green") +
-  tm_shape(plotEnds_sf)+
-  tm_dots(col = "red") +
-  tm_shape(plotEndsGPS_sf) +
-  tm_dots(col = "pink") +
+  tm_shape(occurrences_sf) +
+  tm_dots(col = "#00FF00", border.col = "black", border.lwd = 0.5)
+
+# write out for Google Earth
+st_write(occurrences_sf, "/Users/jennifercribbs/Documents/YOSE/Analysis/MultipleDisturbances/outputSandbox/YOSEallTrees2023.kml", driver = "KML", delete_dsn = TRUE)
+# write out for QGIS or ARCGIS
+st_write(occurrences_sf, "/Users/jennifercribbs/Documents/YOSE/Analysis/MultipleDisturbances/outputSandbox/YOSEallTrees2023.shp", driver = "ESRI Shapefile", delete_dsn = TRUE)
+
+
   
-  tm_scale_bar(breaks = c(0, 5, 10), text.size = 0.7, position = c("right", "bottom")) +
-  tm_compass(type = "4star", size = 3, position = c("right", "top"))  +
-  tm_layout(main.title = "Plots in Yosemite", 
-            main.title.size = 1.25, main.title.position="center",
-            legend.outside = TRUE, legend.outside.position = "right",
-            frame = FALSE)
+  
+
+
+  
+  
+            

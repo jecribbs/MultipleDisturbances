@@ -16,7 +16,7 @@ library(tmap)
 ## Part 1: Calculate plot ends
 
 # read in clean plot data
-plotData <- read.csv("/Users/jennifercribbs/Documents/YOSE/Analysis/MultipleDisturbances/dataSandbox/CleanData/PlotLevelData.csv")
+plotData <- read.csv("/Users/jennifercribbs/Documents/YOSE/Analysis/MultipleDisturbances/Data/CleanData/PlotLevelData.csv")
 # read in tree data
 treeData <- read.csv("/Users/jennifercribbs/Documents/YOSE/Analysis/MultipleDisturbances/dataSandbox/CleanData/YOSE_cleanTreeList.csv")
 # read in pila data
@@ -61,8 +61,6 @@ plotEndsGPS_sf <- plotData %>%
              crs = paste0("+proj=utm +zone=", unique(df$UTM_zone), " +datum=NAD83")) %>%
       st_transform(crs = 4326)  # Convert to lat/long
   })
-
-
 
 # Part 3: Choose calculated or field gps coordinates for end points 
 # Manual review in progress
@@ -264,26 +262,21 @@ tm_shape(nps) +
   tm_polygons(col = "gray",
               title = "Yosemite") +
   tm_shape(kml) +
-  tm_dots(col = "black") +
+  tm_dots(fill = "black") +
   tm_shape(pila_points_gps) +
-  tm_dots(col = "magenta") +
+  tm_dots(fill = "magenta", popup.vars = "occurrenceID") +
   tm_shape(pila_points_xy) +
-  tm_dots(col = "purple") +
+  tm_dots(fill = "purple", popup.vars = "occurrenceID") +
   tm_shape(tree_points) +
-  tm_dots(col = "darkgreen") +
+  tm_dots( fill = "darkgreen", popup.vars = c("treeNum", "species")) +
   tm_shape(plotBeg_sf) +
-  tm_dots(col = "green") +
+  tm_dots(fill = "green", popup.vars = "plotID") +
   tm_shape(plotEnds_sf)+
-  tm_dots(col = "red") +
+  tm_dots(fill = "red", popup.vars = "plotID") +
   tm_shape(plotEndsGPS_sf) +
-  tm_dots(col = "pink") +
+  tm_dots(fill = "pink", popup.vars = "plotID") 
   
-  tm_scale_bar(breaks = c(0, 5, 10), text.size = 0.7, position = c("right", "bottom")) +
-  tm_compass(type = "4star", size = 3, position = c("right", "top"))  +
-  tm_layout(main.title = "Plots in Yosemite", 
-            main.title.size = 1.25, main.title.position="center",
-            legend.outside = TRUE, legend.outside.position = "right",
-            frame = FALSE)
+  
 
 # Come up with an algorithm or review strategy for duplicate trees with gps and xy coordinates
 
@@ -315,3 +308,7 @@ ggplot() +
 
 # Write out final spatial data
 #write_csv(ype_coords, "YPE_plot_coordinates.csv")
+
+st_write(your_sf_object, "your_data.kml", driver = "KML")
+st_write(your_sf_object, "your_data.shp", driver = "ESRI Shapefile")
+
