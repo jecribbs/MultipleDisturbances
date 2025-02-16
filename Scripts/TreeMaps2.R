@@ -16,11 +16,14 @@ library(tmap)
 ## Part 1: Calculate plot ends
 
 # read in clean plot data
-plotData <- read.csv("/Users/jennifercribbs/Documents/YOSE/Analysis/MultipleDisturbances/dataSandbox/CleanData/PlotLevelData.csv")
+#plotData <- read.csv("/Users/jennifercribbs/Documents/YOSE/Analysis/MultipleDisturbances/dataSandbox/CleanData/PlotLevelData.csv")
+plotData <- read.csv("C:/Users/tazli/Downloads/YOSE_SugarPine/DataClean/PlotLevelData.csv")
 # read in tree data
-treeData <- read.csv("/Users/jennifercribbs/Documents/YOSE/Analysis/MultipleDisturbances/dataSandbox/CleanData/YOSE_cleanTreeList.csv")
+#treeData <- read.csv("/Users/jennifercribbs/Documents/YOSE/Analysis/MultipleDisturbances/dataSandbox/CleanData/YOSE_cleanTreeList.csv")
+treeData <- read.csv("C:/Users/tazli/Downloads/YOSE_SugarPine/MultipleDisturbances/YOSE_cleanTreeList.csv")
 # read in pila data
-pilaData <- read.csv("/Users/jennifercribbs/Documents/YOSE/Analysis/MultipleDisturbances/dataSandbox/CleanData/YOSE_cleanPILAdata.csv")
+#pilaData <- read.csv("/Users/jennifercribbs/Documents/YOSE/Analysis/MultipleDisturbances/dataSandbox/CleanData/YOSE_cleanPILAdata.csv")
+pilaData <- read.csv("C:/Users/tazli/Downloads/YOSE_SugarPine/MultipleDisturbances/YOSE_cleanPILAdata.csv")
 
 # plot end point calculation 
 # Convert field azimuth from magnetic to true and degrees to radians
