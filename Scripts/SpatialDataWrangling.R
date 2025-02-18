@@ -78,7 +78,7 @@ pilas <- pilas %>%
   mutate(occurrenceID = paste(occurrenceID = paste("E", plotID, "-", "PILA", treeNum, sep = "")))
 
 # remove row with no data except "bearing above" dSideR column
-pilas <- pilas %>% filter(!is.na(plotID))
+# pilas <- pilas %>% filter(!is.na(plotID))
 
 # E75 is mostly GPS, 18 and 19 are xy, but 16 and 17 are missing all position information because of cryptic position notes down and towards trail is pretty close to south
 # clean up estimated position values based on notes
@@ -213,11 +213,11 @@ pilas$kml_id <- ifelse(grepl(pattern ="_NA", pilas$kml_id), NA_character_, pilas
 non_na_duplicates <- pilas$kml_id[duplicated(pilas$kml_id) & !is.na(pilas$kml_id)]
 unique(non_na_duplicates)
 # all three cases seem to be different trees at a similar point
-point00118 <- pilas %>% filter(PILA_waypoint == "00118") %>% select(occurrenceID, PILA_waypoint, DBH_cm, height_m, notes) # gives relative position from a large ABCO snag, but would need to find this
-point00174 <- pilas %>% filter(PILA_waypoint == "00174") %>% select(occurrenceID, PILA_waypoint, DBH_cm, height_m, notes) # could check full note
-point0262 <- pilas %>% filter(PILA_waypoint == "0262") %>% select(occurrenceID, PILA_waypoint, DBH_cm, height_m, notes) # could check full note
-point00047 <- pilas %>% filter(PILA_waypoint == "00047") %>% select(occurrenceID, PILA_waypoint, DBH_cm, height_m, notes) # could check full note
-point00060 <- pilas %>% filter(PILA_waypoint == "00060") %>% select(occurrenceID, PILA_waypoint, DBH_cm, height_m, notes) # could check full note
+#point00118 <- pilas %>% filter(PILA_waypoint == "00118") %>% select(occurrenceID, PILA_waypoint, DBH_cm, height_m) # gives relative position from a large ABCO snag, but would need to find this
+#point00174 <- pilas %>% filter(PILA_waypoint == "00174") %>% select(occurrenceID, PILA_waypoint, DBH_cm, height_m) # could check full note
+#point0262 <- pilas %>% filter(PILA_waypoint == "0262") %>% select(occurrenceID, PILA_waypoint, DBH_cm, height_m) # could check full note
+#point00047 <- pilas %>% filter(PILA_waypoint == "00047") %>% select(occurrenceID, PILA_waypoint, DBH_cm, height_m) # could check full note
+#point00060 <- pilas %>% filter(PILA_waypoint == "00060") %>% select(occurrenceID, PILA_waypoint, DBH_cm, height_m) # could check full note
 # all seem to be trees that should share a waypoint
 
 # join pila and kml data
@@ -256,6 +256,16 @@ table(grepl("[[:cntrl:]]", kml_filtered$Name))
 # E73-PILA 30 has dOut in addition to waypoint name and UTMs--try using UTMs
 # E73 PILAs 36 and 37 have estimated position information
 
+# see unique values
+unique(pilas_kml$est_dOut_m)  # all numeric except "WP29 + 10m"
+unique(pilas_kml$est_dSideL) # all numeric except "WP29+8m"
+
+# coerce estimated columns to numeric 
+pilas_kml <- pilas_kml %>% mutate(
+  est_dOut_m = as.numeric(est_dOut_m),
+  est_dSideL = as.numeric(est_dSideL)
+) 
+
 # Add position information for unusual cases
 # modify specific values for eventID == "E58-PILA16"--calculated by hand using trig from WP29 as described in the notes
 pilas_kml <- pilas_kml %>%
@@ -289,12 +299,6 @@ pilas_kml <- pilas_kml %>% mutate(est_dSide = case_when(
   !is.na(est_dSideR) & est_dSideR >= 0 ~ est_dSideR,
   !is.na(est_dSideL) & est_dSideL <= 0 ~ est_dSideL,
   TRUE ~ NA_real_))
-
-# coerce estimated columns to numeric 
-pilas_kml <- pilas_kml %>% mutate(
-  est_dOut_m = as.numeric(est_dOut_m),
-  est_dSideL = as.numeric(est_dSideL)
-) 
 
 # finalize dSide by prioritizing measured over estimated values
 pilas_kml <- pilas_kml %>% 
@@ -546,7 +550,7 @@ tree_points_trimmed <- tree_points %>% select (occurrenceID, verbatimLatitude, v
 # bind associated trees with pilas
 occurrence_positions <- rbind(gbif_pilas, tree_points_trimmed)
 
-# check for missing positions--still 16 from the PILAs
+# check for missing positions--still 14 from the PILAs
 missing_positions <- occurrence_positions %>%
   filter(is.na(verbatimLatitude) & is.na(verbatimLongitude))
 nrow(missing_positions)
