@@ -1,4 +1,4 @@
-# GBIF: Occurence Tab for PILA and Associated Trees
+# GBIF: Occurrence Tab for PILA and Associated Trees
 # Authors: Jenny Cribbs, Tazlina Dentinger
 # Date created: 06 December 2024
 # Updated: 10 February 2025, TMD
@@ -72,7 +72,7 @@ pila_list <- pila_list %>%
          deadTop = DTOP, 
          boleChar = fire_scar)
 
-##------DAMAGE CODES-------- 
+#------DAMAGE CODES-------- 
 #scan notes for damage codes and indicators thereof, create new columns for each code, then paste into the damageCodes column in tree_list
 
 # make damage codes uppercase
@@ -113,8 +113,6 @@ pila_list <- pila_list %>%
     TRUE ~ fireDamage
   ))
 
-#temporary object to check the damage columns
-#pilaDMG <- filter(pila_list, twinDamage == "TWIN") %>% select(eventID, treeNum, species, percentLive, damageCodes, notes, twinDamage)
 
 #remove false positives in damage column, e.g. "offshoot", "no fire scar", "yellow pitch"
 pila_list <- pila_list %>%
@@ -230,6 +228,40 @@ pila_list <- pila_list %>%
     )
   ) 
 
+## ----- Estimated DBH and Heights --------
+#check est columns
+pila_list_est <- pila_list %>% 
+  select(eventID, treeNum, diameter, est_DBH_cm, height, est_height_m) %>% 
+  filter(!is.na(est_DBH_cm) | !is.na(est_height_m))
+
+#coalesce prioritizing measured values
+pila_list <- pila_list %>% 
+  mutate(diameter_final = case_when(!is.na(diameter) ~ diameter,
+                                !is.na(est_DBH_cm) ~ as.numeric(est_DBH_cm),
+                                TRUE ~ NA_real_),
+         height_final = case_when(!is.na(height) ~ height,
+                                  !is.na(est_height_m) ~ as.numeric(est_height_m),
+                                  TRUE ~ NA_real_))
+#add flag columns for data type to diameter and height
+pila_list <- pila_list %>%  
+  mutate(
+    diameter_flag = case_when(
+      !is.na(diameter) ~ "measured",
+      !is.na(est_DBH_cm) ~ "estimated",
+      TRUE ~ NA_character_  
+    ),
+    height_flag = case_when(
+      !is.na(height) ~ "measured",
+      !is.na(est_height_m) ~ "estimated",
+      TRUE ~ NA_character_
+    ))
+
+pila_nas <- pila_list %>% 
+  filter(is.na(diameter_final) | is.na(height_final)) %>% 
+  select(eventID, treeNum, diameter, est_DBH_cm, diameter_final, height, est_height_m, height_final, percentLive, damageCodes, notes)
+
+
+# -------GBIF---------
 # add GBIF columns to match occurrence tab template
 pila_list <- pila_list %>% 
   mutate(occurrenceID = paste(occurrenceID = paste("E", eventID, "-", "PILA", treeNum, sep = "")), 
@@ -262,7 +294,9 @@ pila_list <- pila_list %>%
          materialSampleID = "",
          recordNumber = "",
          organismRemarks = "",
-         identificationID = "")
+         identificationID = "", 
+         height = height_final,
+         diameter = diameter_final)
 
 # select columns for GBIF occurrence tab
 cleanPILAdata <- pila_list %>% 
@@ -275,7 +309,7 @@ cleanPILAdata <- pila_list %>%
          identificationQualifier, identificationVerificationStatus, 
          occurrenceRemarks, materialSampleID, recordNumber, 
          organismRemarks, identificationID, 
-         diameter, height, pitchTubes, exitHoles, 
+         diameter, diameter_flag, height, height_flag, pitchTubes, exitHoles, 
          activeBranchCanker, inactiveBranchCanker, 
          activeBoleCanker, inactiveBoleCanker, 
          percentLive, boleChar_text, boleChar_numeric, damageCodes)
