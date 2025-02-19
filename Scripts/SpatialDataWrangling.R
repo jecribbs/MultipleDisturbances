@@ -96,10 +96,10 @@ pilas <- pilas %>%
     PILA_UTM_N = ifelse(occurrenceID == "E75-PILA19", 4201923, PILA_UTM_N)     
     )   
 
-# E48-PILA1 has no position information--could use relative position for 900.9m out at 262 magnetic (271502, 4181453)
+# E48-PILA1 has no position information--could use relative position for 900.9m out at 262 magnetic (270655.9, 4182507)
 pilas <- pilas %>% mutate(
-  PILA_UTM_E = ifelse(occurrenceID == "E48-PILA1", 271502, PILA_UTM_E),
-  PILA_UTM_N = ifelse(occurrenceID == "E48-PILA1", 4181453, PILA_UTM_N))
+  PILA_UTM_E = ifelse(occurrenceID == "E48-PILA1", 270655.9, PILA_UTM_E),
+  PILA_UTM_N = ifelse(occurrenceID == "E48-PILA1", 4182507, PILA_UTM_N))
 
 # trees 16 and 17 have the following notes 
 #[895] "30m down and towards trail from tree 10"
