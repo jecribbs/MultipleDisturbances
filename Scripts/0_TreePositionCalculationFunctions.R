@@ -52,4 +52,15 @@ calculate_tree_positions <- function(data) {
   # 3. the magnetic bearing from the reference point to the target in degrees
   # 4. the distance from the reference point to the target
   
+relativeTreeCalculationPlot37 <- function(start_E, start_N, bearing, distance) {
+  hypotenuse = distance  # Calculate hypotenuse
+  # Convert azimuth from magnetic to true and degrees to radians
+  bearing_rad = (bearing)  * pi / 180 
+  x_offset = hypotenuse * sin(bearing_rad) # Calculate x offset
+  y_offset = hypotenuse * cos(bearing_rad) # Calculate y offset
+  tree_UTM_E = start_E + x_offset  # Final easting
+  tree_UTM_N = start_N + y_offset   # Final northing
+  print(list(tree_UTM_E = tree_UTM_E, tree_UTM_N = tree_UTM_N))
+} 
 
+relativeTreeCalculationPlot37(0247726, 4193157, 77, 200)

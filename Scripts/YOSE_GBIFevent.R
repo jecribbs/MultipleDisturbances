@@ -5,7 +5,6 @@
 # Overall Input: Read in csv files for plot-level data, fire severity data, and PRISM data
 # Overall Output: Clean csv with a row for each plot and columns matching GBIF columns, so the output can be pasted into NPS template Event tab
 
-library(readxl)
 # read in clean plot data
 plotData <- read.csv("/Users/jennifercribbs/Documents/YOSE/Analysis/MultipleDisturbances/dataSandbox/CleanData/PlotLevelData.csv")
 
@@ -27,14 +26,6 @@ plotData <- left_join(plotData, fireData)
 plotData <- left_join(plotData, effortData)
 
 # plot end point calculation 
-# Convert field azimuth from magnetic to true and degrees to radians
-plotData <- plotData %>% mutate(azimuth_rad = (plot_azimuth + 12.5) * pi / 180)
-
-# Calculate the easting and northing offsets
-plotData <- plotData %>% mutate(delta_easting = trans_length * sin(azimuth_rad), delta_northing = trans_length * cos(azimuth_rad))
-
-# Calculate the ending UTM coordinates
-plotData <- plotData %>% mutate(end_easting = plot_beg_UTM_E + delta_easting, end_northing = plot_beg_UTM_N + delta_northing)
 
 # Adjust the transect length for plots with negative ends 
 plotData <-plotData %>% mutate(calculatedLength = case_when(
@@ -48,8 +39,16 @@ plotData <-plotData %>% mutate(calculatedLength = case_when(
   plotID == 72 ~ trans_length - 1.5,
   TRUE ~ trans_length
                                ))
+# Convert field azimuth from magnetic to true and degrees to radians
+plotData <- plotData %>% mutate(azimuth_rad = (plot_azimuth + 12.5) * pi / 180)
 
-# Create spatial points and convert to lat/long (WGS84)
+# Calculate the easting and northing offsets
+plotData <- plotData %>% mutate(delta_easting = calculatedLength * sin(azimuth_rad), delta_northing = calculatedLength * cos(azimuth_rad))
+
+# Calculate the ending UTM coordinates
+plotData <- plotData %>% mutate(end_easting = plot_beg_UTM_E + delta_easting, end_northing = plot_beg_UTM_N + delta_northing)
+
+# create spatial points and convert to lat/long (WGS84)
 # plot beginnings
 plotBeg_sf <- plotData %>%
   group_split(UTM_zone) %>%
@@ -79,6 +78,17 @@ plotEndsGPS_sf <- plotData %>%
       st_transform(crs = 4326)  # Convert to lat/long
   })
 
+# Map pila and non-pila trees with plot points and gps points
+tmap_mode("view")
+
+  
+  tm_shape(plotBeg_sf) +
+  tm_dots(fill = "green", popup.vars = "plotID") +
+  tm_shape(plotEnds_sf)+
+  tm_dots(fill = "red", popup.vars = "plotID") +
+  tm_shape(plotEndsGPS_sf) +
+  tm_dots(fill = "pink", popup.vars = "plotID") 
+  
 # rename and add columns to match template
 eventData <- combinedData %>% rename(eventID = plotID, 
                                      samplingProtocol = plot_type,
