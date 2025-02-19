@@ -5,7 +5,6 @@
 # Overall Input: Read in csv files for plot-level data, fire severity data, and PRISM data
 # Overall Output: Clean csv with a row for each plot and columns matching GBIF columns, so the output can be pasted into NPS template Event tab
 
-library(readxl)
 # read in clean plot data
 plotData <- read.csv("/Users/jennifercribbs/Documents/YOSE/Analysis/MultipleDisturbances/dataSandbox/CleanData/PlotLevelData.csv")
 
@@ -19,12 +18,124 @@ effortData <- read.csv("/Users/jennifercribbs/Documents/YOSE/Analysis/MultipleDi
          endDateTime = "End.Date.time") %>% 
   select(plotID, effort, startDateTime, endDateTime)
 
+# bring in spatial info
+spatial <- read.csv("/Users/jennifercribbs/Documents/YOSE/Analysis/MultipleDisturbances/Data/CleanData/SpatialDataCleaning.csv")
+
 # join prism and fire data then join to plot data
 #prismFire <- left_join(fireData, prismData, by = c("plotID" = "PlotID"))
-plotFiredata <- left_join(plotData, fireData)
+plotData <- left_join(plotData, fireData)
 
 # add estimated effort data
-combinedData <- left_join(plotFiredata, effortData)
+plotData <- left_join(plotData, effortData)
+
+# add spatial info
+plotData <- left_join(plotData, spatial)
+
+# plot end point calculation 
+
+# Adjust the transect length for plots with negative ends 
+plotData <-plotData %>% mutate(calculatedLength = case_when(
+  plotID == 3 ~ trans_length - 40,
+  plotID == 28 ~ trans_length - 19,
+  plotID == 31 ~ trans_length - 82.2,
+  plotID == 35 ~ trans_length - 26,
+  plotID == 44 ~ trans_length - 180,
+  plotID == 68 ~ trans_length - 10.3,
+  plotID == 71 ~ trans_length - 50,
+  plotID == 72 ~ trans_length - 1.5,
+  TRUE ~ trans_length
+                               ))
+# Convert field azimuth from magnetic to true and degrees to radians
+plotData <- plotData %>% mutate(azimuth_rad = (plot_azimuth + 12.5) * pi / 180)
+
+# Calculate the easting and northing offsets
+plotData <- plotData %>% mutate(delta_easting = calculatedLength * sin(azimuth_rad), delta_northing = calculatedLength * cos(azimuth_rad))
+
+# Calculate the ending UTM coordinates
+plotData <- plotData %>% mutate(end_easting = plot_beg_UTM_E + delta_easting, end_northing = plot_beg_UTM_N + delta_northing)
+
+# create spatial points and convert to lat/long (WGS84)
+# plot beginnings
+plotBeg_sf <- plotData %>%
+  group_split(UTM_zone) %>%
+  map_dfr(function(df) {
+    st_as_sf(df, 
+             coords = c("plot_beg_UTM_E", "plot_beg_UTM_N"), 
+             crs = paste0("+proj=utm +zone=", unique(df$UTM_zone), " +datum=NAD83")) %>%
+      st_transform(crs = 4326)  # Convert to lat/long
+  })
+# plot ends (calculated)
+plotEnds_sf <- plotData %>% 
+  group_split(UTM_zone) %>% 
+  map_dfr(function(df) {
+    st_as_sf(df, 
+             coords = c("end_easting", "end_northing"), 
+             crs = paste0("+proj=utm +zone=", unique(df$UTM_zone), " +datum=NAD83")) %>%
+      st_transform(crs = 4326)  # Convert to lat/long
+  })
+# plot ends (gps)
+plotEndsGPS_sf <- plotData %>% 
+  filter(!is.na(plot_end_UTM_N) & !is.na(plot_end_UTM_E)) %>%
+  group_split(UTM_zone) %>% 
+  map_dfr(function(df) {
+    st_as_sf(df, 
+             coords = c("plot_end_UTM_E", "plot_end_UTM_N"), 
+             crs = paste0("+proj=utm +zone=", unique(df$UTM_zone), " +datum=NAD83")) %>%
+      st_transform(crs = 4326)  # Convert to lat/long
+  })
+
+# Map pila and non-pila trees with plot points and gps points
+tmap_mode("view")
+
+  
+  tm_shape(plotBeg_sf) +
+  tm_dots(fill = "green", popup.vars = "plotID") +
+  tm_shape(plotEnds_sf)+
+  tm_dots(fill = "red", popup.vars = "plotID") +
+  tm_shape(plotEndsGPS_sf) +
+  tm_dots(fill = "pink", popup.vars = "plotID") 
+
+# choose GPS coordinates as endpoints (unless manual review determined calculated is better)
+# use calculated when no GPS coordinates were taken
+plotData <- plotData %>% 
+  mutate(plot_end_final_E = case_when(
+    plotEndType == "GPS" ~ plot_end_UTM_E, 
+    TRUE ~ end_easting
+  )) %>% 
+  mutate(plot_end_final_N = case_when(
+    plotEndType == "GPS" ~ plot_end_UTM_N, 
+    TRUE ~ end_northing
+    
+  ))
+
+# bring in tree level data
+treeData <- read.csv("/Users/jennifercribbs/Documents/YOSE/Analysis/MultipleDisturbances/outputSandbox/occurrence_positions.csv")
+
+library(sf)
+library(dplyr)
+
+# Example: Assume your data is in a data frame called tree_data with columns: plotID, longitude, latitude
+tree_sf <- treeData %>%
+  st_as_sf(coords = c("verbatimLongitude", "verbatimLatitude"), crs = 4326) %>%  # Convert to sf object with WGS84 CRS
+  group_by(plotID) %>%
+  summarise(geometry = st_union(geometry)) %>%  # Merge all points in each plot
+  mutate(convex_hull = st_convex_hull(geometry))  # Compute convex hull
+
+# Calculate area in square meters (convert to a projected CRS first)
+tree_sf <- tree_sf %>%
+  st_transform(crs = 32611) %>%  # Change to an appropriate UTM zone for your region
+  mutate(area_m2 = st_area(convex_hull))
+
+# View results
+print(tree_sf)
+
+# calculate area based on plot type
+plotData <- plotData %>% 
+  mutate(area_PILA = case_when(
+    plotShape == "Transect" ~ calculatedLength * width_pila,
+    plotShape == "Balloon" ~ 
+  ))
+
 
 # rename and add columns to match template
 eventData <- combinedData %>% rename(eventID = plotID, 
@@ -37,7 +148,7 @@ eventData <- combinedData %>% rename(eventID = plotID,
                                      eventRemarks = plot_notes,
                                      azimuth = plot_azimuth) %>% 
   mutate(parentEventID = "", 
-         sampleSizeValue = trans_length * width_pila, 
+         sampleSizeValue = area_PILA, 
          sampleSizeUnit = "square meters",
          waterFeatureName = "",
          countryCode = "US",

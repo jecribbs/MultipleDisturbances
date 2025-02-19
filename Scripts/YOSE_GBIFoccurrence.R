@@ -22,8 +22,8 @@ setwd("/Users/tazli/Downloads/YOSE_SugarPine/MultipleDisturbances")
 
 # Bring in the PILA data for each plot in the project folder from Google Sheets
 # setting the directory for data extraction--change to your local data directory
-#datadir <- "/Users/jennifercribbs/Documents/YOSE/Analysis/MultipleDisturbances/Data/RawData/YPE_Data"
-datadir <- "/Users/tazli/Downloads/YOSE_SugarPine/MultipleDisturbances/Data/RawData/YPE_Data"
+datadir <- "/Users/jennifercribbs/Documents/YOSE/Analysis/MultipleDisturbances/Data/RawData/YPE_Data"
+# datadir <- "/Users/tazli/Downloads/YOSE_SugarPine/MultipleDisturbances/Data/RawData/YPE_Data"
 
 # provide path for files in datadir
 folders <- list.dirs(datadir, full.names = TRUE)[-c(1,4)] # Ensure full path names are used
@@ -214,8 +214,8 @@ pila_list <- pila_list %>%
   mutate(
     boleChar_numeric = case_when(
       suppressWarnings(!is.na(as.numeric(boleChar))) ~ suppressWarnings(as.numeric(boleChar)),
-      boleChar == "N" ~ as.numeric(0)
-      boleChar == "<10" ~ as.numeric(10)
+      boleChar == "N" ~ as.numeric(0),
+      boleChar == "<10" ~ as.numeric(10),
       TRUE ~ NA),
     boleChar_text = case_when(
       !is.na(boleChar_numeric) & boleChar_numeric > 0 ~ "Y",
