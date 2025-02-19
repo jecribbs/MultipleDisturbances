@@ -18,12 +18,18 @@ effortData <- read.csv("/Users/jennifercribbs/Documents/YOSE/Analysis/MultipleDi
          endDateTime = "End.Date.time") %>% 
   select(plotID, effort, startDateTime, endDateTime)
 
+# bring in spatial info
+spatial <- read.csv("/Users/jennifercribbs/Documents/YOSE/Analysis/MultipleDisturbances/Data/CleanData/SpatialDataCleaning.csv")
+
 # join prism and fire data then join to plot data
 #prismFire <- left_join(fireData, prismData, by = c("plotID" = "PlotID"))
 plotData <- left_join(plotData, fireData)
 
 # add estimated effort data
 plotData <- left_join(plotData, effortData)
+
+# add spatial info
+plotData <- left_join(plotData, spatial)
 
 # plot end point calculation 
 
@@ -88,7 +94,49 @@ tmap_mode("view")
   tm_dots(fill = "red", popup.vars = "plotID") +
   tm_shape(plotEndsGPS_sf) +
   tm_dots(fill = "pink", popup.vars = "plotID") 
-  
+
+# choose GPS coordinates as endpoints (unless manual review determined calculated is better)
+# use calculated when no GPS coordinates were taken
+plotData <- plotData %>% 
+  mutate(plot_end_final_E = case_when(
+    plotEndType == "GPS" ~ plot_end_UTM_E, 
+    TRUE ~ end_easting
+  )) %>% 
+  mutate(plot_end_final_N = case_when(
+    plotEndType == "GPS" ~ plot_end_UTM_N, 
+    TRUE ~ end_northing
+    
+  ))
+
+# bring in tree level data
+treeData <- read.csv("/Users/jennifercribbs/Documents/YOSE/Analysis/MultipleDisturbances/outputSandbox/occurrence_positions.csv")
+
+library(sf)
+library(dplyr)
+
+# Example: Assume your data is in a data frame called tree_data with columns: plotID, longitude, latitude
+tree_sf <- treeData %>%
+  st_as_sf(coords = c("verbatimLongitude", "verbatimLatitude"), crs = 4326) %>%  # Convert to sf object with WGS84 CRS
+  group_by(plotID) %>%
+  summarise(geometry = st_union(geometry)) %>%  # Merge all points in each plot
+  mutate(convex_hull = st_convex_hull(geometry))  # Compute convex hull
+
+# Calculate area in square meters (convert to a projected CRS first)
+tree_sf <- tree_sf %>%
+  st_transform(crs = 32611) %>%  # Change to an appropriate UTM zone for your region
+  mutate(area_m2 = st_area(convex_hull))
+
+# View results
+print(tree_sf)
+
+# calculate area based on plot type
+plotData <- plotData %>% 
+  mutate(area_PILA = case_when(
+    plotShape == "Transect" ~ calculatedLength * width_pila,
+    plotShape == "Balloon" ~ 
+  ))
+
+
 # rename and add columns to match template
 eventData <- combinedData %>% rename(eventID = plotID, 
                                      samplingProtocol = plot_type,
@@ -100,7 +148,7 @@ eventData <- combinedData %>% rename(eventID = plotID,
                                      eventRemarks = plot_notes,
                                      azimuth = plot_azimuth) %>% 
   mutate(parentEventID = "", 
-         sampleSizeValue = trans_length * width_pila, 
+         sampleSizeValue = area_PILA, 
          sampleSizeUnit = "square meters",
          waterFeatureName = "",
          countryCode = "US",
