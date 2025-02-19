@@ -21,10 +21,63 @@ effortData <- read.csv("/Users/jennifercribbs/Documents/YOSE/Analysis/MultipleDi
 
 # join prism and fire data then join to plot data
 #prismFire <- left_join(fireData, prismData, by = c("plotID" = "PlotID"))
-plotFiredata <- left_join(plotData, fireData)
+plotData <- left_join(plotData, fireData)
 
 # add estimated effort data
-combinedData <- left_join(plotFiredata, effortData)
+plotData <- left_join(plotData, effortData)
+
+# plot end point calculation 
+# Convert field azimuth from magnetic to true and degrees to radians
+plotData <- plotData %>% mutate(azimuth_rad = (plot_azimuth + 12.5) * pi / 180)
+
+# Calculate the easting and northing offsets
+plotData <- plotData %>% mutate(delta_easting = trans_length * sin(azimuth_rad), delta_northing = trans_length * cos(azimuth_rad))
+
+# Calculate the ending UTM coordinates
+plotData <- plotData %>% mutate(end_easting = plot_beg_UTM_E + delta_easting, end_northing = plot_beg_UTM_N + delta_northing)
+
+# Adjust the transect length for plots with negative ends 
+plotData <-plotData %>% mutate(calculatedLength = case_when(
+  plotID == 3 ~ trans_length - 40,
+  plotID == 28 ~ trans_length - 19,
+  plotID == 31 ~ trans_length - 82.2,
+  plotID == 35 ~ trans_length - 26,
+  plotID == 44 ~ trans_length - 180,
+  plotID == 68 ~ trans_length - 10.3,
+  plotID == 71 ~ trans_length - 50,
+  plotID == 72 ~ trans_length - 1.5,
+  TRUE ~ trans_length
+                               ))
+
+# Create spatial points and convert to lat/long (WGS84)
+# plot beginnings
+plotBeg_sf <- plotData %>%
+  group_split(UTM_zone) %>%
+  map_dfr(function(df) {
+    st_as_sf(df, 
+             coords = c("plot_beg_UTM_E", "plot_beg_UTM_N"), 
+             crs = paste0("+proj=utm +zone=", unique(df$UTM_zone), " +datum=NAD83")) %>%
+      st_transform(crs = 4326)  # Convert to lat/long
+  })
+# plot ends (calculated)
+plotEnds_sf <- plotData %>% 
+  group_split(UTM_zone) %>% 
+  map_dfr(function(df) {
+    st_as_sf(df, 
+             coords = c("end_easting", "end_northing"), 
+             crs = paste0("+proj=utm +zone=", unique(df$UTM_zone), " +datum=NAD83")) %>%
+      st_transform(crs = 4326)  # Convert to lat/long
+  })
+# plot ends (gps)
+plotEndsGPS_sf <- plotData %>% 
+  filter(!is.na(plot_end_UTM_N) & !is.na(plot_end_UTM_E)) %>%
+  group_split(UTM_zone) %>% 
+  map_dfr(function(df) {
+    st_as_sf(df, 
+             coords = c("plot_end_UTM_E", "plot_end_UTM_N"), 
+             crs = paste0("+proj=utm +zone=", unique(df$UTM_zone), " +datum=NAD83")) %>%
+      st_transform(crs = 4326)  # Convert to lat/long
+  })
 
 # rename and add columns to match template
 eventData <- combinedData %>% rename(eventID = plotID, 
