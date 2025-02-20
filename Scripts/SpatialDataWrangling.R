@@ -494,7 +494,7 @@ summary(trees)
 trees <- trees %>%
   mutate(species = case_when(
     species == "PYGE" ~ "PIJE",
-    species %in% c("unknown", "UNK", "UNKNOWN", "Charcol", "Unknown") ~ "UNKNOWN",
+    species %in% c("unknown", "UNK", "UNKNOWN", "Charcol", "Unknown") ~ "Pinales",
     TRUE ~ species
   ))
 

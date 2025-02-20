@@ -15,15 +15,16 @@ librarian::shelf(tidyverse, readxl, viridis, patchwork)
 library(VIM)
 library(dplyr)
 library(tidyverse)
+library(lubridate)
 
 # Set the working directory
-#setwd("/Users/jennifercribbs/Documents/YOSE/Analysis/MultipleDisturbances/")
-setwd("/Users/tazli/Downloads/YOSE_SugarPine/MultipleDisturbances")
+setwd("/Users/jennifercribbs/Documents/YOSE/Analysis/MultipleDisturbances/")
+#setwd("/Users/tazli/Downloads/YOSE_SugarPine/MultipleDisturbances")
 
 # Bring in the PILA data for each plot in the project folder from Google Sheets
 # setting the directory for data extraction--change to your local data directory
-#datadir <- "/Users/jennifercribbs/Documents/YOSE/Analysis/MultipleDisturbances/Data/RawData/YPE_Data"
- datadir <- "/Users/tazli/Downloads/YOSE_SugarPine/MultipleDisturbances/Data/RawData/YPE_Data"
+datadir <- "/Users/jennifercribbs/Documents/YOSE/Analysis/MultipleDisturbances/Data/RawData/YPE_Data"
+ #datadir <- "/Users/tazli/Downloads/YOSE_SugarPine/MultipleDisturbances/Data/RawData/YPE_Data"
 
 # provide path for files in datadir
 folders <- list.dirs(datadir, full.names = TRUE)[-c(1,4)] # Ensure full path names are used
@@ -62,8 +63,9 @@ pila_WPBR_na <- pila_list %>% filter(is.na(activeBoleCanker))
 
 # Part2: PILA Data Wrangling -------------------------
 
-# remove row with no data
-pila_list <- pila_list %>% filter(!is.na(plotID))
+# Ensure all values include a time
+pila_list <- pila_list %>%
+  mutate(date_time = ifelse(grepl(":", date), date, paste0(date, " 00:00")))
 
 # rename columns to match template style
 pila_list <- pila_list %>% 
@@ -287,7 +289,7 @@ pila_list <- pila_list %>%
          footprintSRS = "", 
          associatedMedia = "",
          identifiedBy = recordedBy,
-         dateIdentified = date,
+         dateIdentified = date_time,
          identificationReferences = "",
          identificationRemarks = "",
          identificationQualifier = "",
@@ -314,7 +316,7 @@ cleanPILAdata <- pila_list %>%
          diameter, diameter_flag, height, height_flag, pitchTubes, exitHoles, 
          activeBranchCanker, inactiveBranchCanker, 
          activeBoleCanker, inactiveBoleCanker, 
-         percentLive, boleChar_text, boleChar_numeric, damageCodes)
+         deadTop, percentLive, boleChar_text, boleChar_numeric, damageCodes)
 
 # Part3: YOSE PILA Data Export -------------------------
 
@@ -507,7 +509,7 @@ treeOccurrenceData <- treeOccurrenceData %>%
            taxonID == "PIPO" ~ "Pinus ponderosa (Douglas ex C.Lawson, 1836)",
            taxonID == "QUKE" ~ "Quercus kelloggii (Newb., 1858)",
            taxonID == "PSME" ~ "Pseudotsuga menziesii ((Mirb.) Franco, 1950)", 
-           taxonID == "Pinales" ~ "Pinales (Gorozh., 1904)", # check that we're not mislabeling any oaks etc. 
+           taxonID == "Pinales" ~ "Pinales (Gorozh., 1904)", 
            taxonID == "QUCH" ~ "Quercus chrysolepis (Leibm., 1854)",
            taxonID == "QUWI" ~ "Quercus wislizeni (A.DC., 1864)",
            taxonID == "ACMA" ~ "Acer macrophyllum (Pursh, 1813)",
@@ -546,7 +548,11 @@ treeOccurrenceData <- treeOccurrenceData %>%
          activeBoleCanker = "",
          inactiveBoleCanker = "",
          deadTop = if_else((str_detect(damageCodes, "\\bDTOP\\b") | (str_detect(damageCodes, "\\bSD\\b"))), "Y", "N", missing = "N"),
-         boleChar = if_else(str_detect(damageCodes, "\\bFIRE\\b"), "Y", "N", missing = "N"))
+         boleChar_text = if_else(str_detect(damageCodes, "\\bFIRE\\b"), "Y", "N", missing = "N"),
+         boleChar_numeric = "", 
+         diameter_flag = "measured",
+         height_flag = "measured"
+         )
 
 # select columns for GBIF occurrence tab
 gbifTreeOccurrence <- treeOccurrenceData %>% 
@@ -560,14 +566,15 @@ gbifTreeOccurrence <- treeOccurrenceData %>%
          identificationQualifier, identificationVerificationStatus, 
          occurrenceRemarks, materialSampleID, 
          recordNumber, organismRemarks, identificationID, 
-         diameter, height, pitchTubes, exitHoles, 
+         diameter, diameter_flag, height, height_flag, 
+         pitchTubes, exitHoles, 
          activeBranchCanker, inactiveBranchCanker, 
          activeBoleCanker, inactiveBoleCanker, 
-         deadTop, percentLive, boleChar, damageCodes) 
+         deadTop, percentLive, boleChar_text, boleChar_numeric, damageCodes) 
 
 # Part8: Combine PILA and Tree Data -------------------------
 
-gbifOccurrence <- rbind (cleanPILAdata, gbifTreeOccurrence)
+gbifOccurrence <- rbind(cleanPILAdata, gbifTreeOccurrence)
 # save as a csv file in the working directory
 
 gbifOccurrence <- gbifOccurrence %>%
