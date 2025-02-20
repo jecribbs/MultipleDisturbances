@@ -110,12 +110,17 @@ plotData <- plotData %>%
 
 # bring in tree level data
 treeData <- read.csv("/Users/jennifercribbs/Documents/YOSE/Analysis/MultipleDisturbances/outputSandbox/occurrence_positions.csv")
-
-library(sf)
-library(dplyr)
+# separate occurrenceID into plotID and treeNum
+treeData <- treeData %>% 
+  separate(occurrenceID, into = c("plotID", "tree_number"), sep = "-", convert = TRUE) 
+# remove Es for plot ID prior to join 
+treeData$plotID <- gsub("E", "", as.character(treeData$plotID))
+# change data type
+treeData$plotID <- as.integer(treeData$plotID)
 
 # Example: Assume your data is in a data frame called tree_data with columns: plotID, longitude, latitude
 tree_sf <- treeData %>%
+  filter(!is.na(verbatimLatitude)) %>% 
   st_as_sf(coords = c("verbatimLongitude", "verbatimLatitude"), crs = 4326) %>%  # Convert to sf object with WGS84 CRS
   group_by(plotID) %>%
   summarise(geometry = st_union(geometry)) %>%  # Merge all points in each plot
@@ -126,15 +131,21 @@ tree_sf <- tree_sf %>%
   st_transform(crs = 32611) %>%  # Change to an appropriate UTM zone for your region
   mutate(area_m2 = st_area(convex_hull))
 
-# View results
-print(tree_sf)
+# join tree polygons with the plot data
+plotData <- left_join(plotData, tree_sf)
 
 # calculate area based on plot type
 plotData <- plotData %>% 
   mutate(area_PILA = case_when(
-    plotShape == "Transect" ~ calculatedLength * width_pila,
-    plotShape == "Balloon" ~ 
+    plotShape == "Transect" ~ trans_length * width_pila,
+    plotShape == "Balloon" ~ as.numeric(area_m2),
+    plotShape == "Trigonometry" ~ as.numeric(area_m2),
+    plotShape == "Observation" ~ NA,
+    TRUE ~ trans_length * width_pila
   ))
+
+#tree_sf <- tree_sf %>%
+  mutate(area_m2 = as.numeric(st_area(convex_hull)))
 
 
 # rename and add columns to match template
