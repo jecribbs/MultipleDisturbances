@@ -375,7 +375,7 @@ summary(tree_list)
 tree_list <- tree_list %>%
   mutate(species = case_when(
     species == "PYGE" ~ "PIJE",
-    species %in% c("unknown", "UNK", "UNKNOWN", "Charcol", "Unknown") ~ "UNKNOWN",
+    species %in% c("unknown", "UNK", "UNKNOWN", "Charcol", "Unknown") ~ "Pinales",
     TRUE ~ species
   ))
 
@@ -507,7 +507,7 @@ treeOccurrenceData <- treeOccurrenceData %>%
            taxonID == "PIPO" ~ "Pinus ponderosa (Douglas ex C.Lawson, 1836)",
            taxonID == "QUKE" ~ "Quercus kelloggii (Newb., 1858)",
            taxonID == "PSME" ~ "Pseudotsuga menziesii ((Mirb.) Franco, 1950)", 
-           taxonID == "UNKNOWN" ~ "Pinales (Gorozh., 1904)", # check that we're not mislabeling any oaks etc. 
+           taxonID == "Pinales" ~ "Pinales (Gorozh., 1904)", # check that we're not mislabeling any oaks etc. 
            taxonID == "QUCH" ~ "Quercus chrysolepis (Leibm., 1854)",
            taxonID == "QUWI" ~ "Quercus wislizeni (A.DC., 1864)",
            taxonID == "ACMA" ~ "Acer macrophyllum (Pursh, 1813)",
