@@ -22,8 +22,8 @@ setwd("/Users/tazli/Downloads/YOSE_SugarPine/MultipleDisturbances")
 
 # Bring in the PILA data for each plot in the project folder from Google Sheets
 # setting the directory for data extraction--change to your local data directory
-datadir <- "/Users/jennifercribbs/Documents/YOSE/Analysis/MultipleDisturbances/Data/RawData/YPE_Data"
-# datadir <- "/Users/tazli/Downloads/YOSE_SugarPine/MultipleDisturbances/Data/RawData/YPE_Data"
+#datadir <- "/Users/jennifercribbs/Documents/YOSE/Analysis/MultipleDisturbances/Data/RawData/YPE_Data"
+ datadir <- "/Users/tazli/Downloads/YOSE_SugarPine/MultipleDisturbances/Data/RawData/YPE_Data"
 
 # provide path for files in datadir
 folders <- list.dirs(datadir, full.names = TRUE)[-c(1,4)] # Ensure full path names are used
@@ -57,6 +57,8 @@ for (folder in folders) {
 
 # check data types
 summary(pila_list)
+
+pila_WPBR_na <- pila_list %>% filter(is.na(activeBoleCanker))
 
 # Part2: PILA Data Wrangling -------------------------
 
@@ -373,7 +375,7 @@ summary(tree_list)
 tree_list <- tree_list %>%
   mutate(species = case_when(
     species == "PYGE" ~ "PIJE",
-    species %in% c("unknown", "UNK", "UNKNOWN", "Charcol", "Unknown") ~ "UNKNOWN",
+    species %in% c("unknown", "UNK", "UNKNOWN", "Charcol", "Unknown") ~ "Pinales",
     TRUE ~ species
   ))
 
@@ -505,7 +507,7 @@ treeOccurrenceData <- treeOccurrenceData %>%
            taxonID == "PIPO" ~ "Pinus ponderosa (Douglas ex C.Lawson, 1836)",
            taxonID == "QUKE" ~ "Quercus kelloggii (Newb., 1858)",
            taxonID == "PSME" ~ "Pseudotsuga menziesii ((Mirb.) Franco, 1950)", 
-           taxonID == "UNKNOWN" ~ "Pinales (Gorozh., 1904)", # check that we're not mislabeling any oaks etc. 
+           taxonID == "Pinales" ~ "Pinales (Gorozh., 1904)", # check that we're not mislabeling any oaks etc. 
            taxonID == "QUCH" ~ "Quercus chrysolepis (Leibm., 1854)",
            taxonID == "QUWI" ~ "Quercus wislizeni (A.DC., 1864)",
            taxonID == "ACMA" ~ "Acer macrophyllum (Pursh, 1813)",
