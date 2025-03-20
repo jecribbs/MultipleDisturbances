@@ -5,7 +5,11 @@
 # Overall Input: Read in csv files for plot-level data, fire severity data, and PRISM data
 # Overall Output: Clean csv with a row for each plot and columns matching GBIF columns, so the output can be pasted into NPS template Event tab
 
-# read in clean plot data
+library(tidyverse)
+library(sf)
+library(tmap)
+
+# read itmap# read in clean plot data
 plotData <- read.csv("/Users/jennifercribbs/Documents/YOSE/Analysis/MultipleDisturbances/dataSandbox/CleanData/PlotLevelData.csv")
 
 # bring in merged ground and MTBS fire severity data
@@ -108,14 +112,36 @@ plotData <- plotData %>%
     
   ))
 
+# create spatial points for final plot end position and convert to lat/long (WGS84)
+plotData <- plotData %>%
+  group_split(UTM_zone) %>%
+  map_dfr(function(df) {
+    st_as_sf(df, 
+             coords = c("plot_end_final_E", "plot_end_final_N"), 
+             crs = paste0("+proj=utm +zone=", unique(df$UTM_zone), " +datum=NAD83")) %>%
+      st_transform(crs = 4326)  # Convert to lat/long
+  })
+
+# extract the latitude and longitude coordinates
+plotData <- plotData %>%
+  mutate(
+    verbatimLatitudeEnd = st_coordinates(plotData)[, 2],  # extract latitude
+    verbatimLongitudeEnd = st_coordinates(plotData)[, 1]  # extract longitude
+  )
+
 # bring in tree level data
 treeData <- read.csv("/Users/jennifercribbs/Documents/YOSE/Analysis/MultipleDisturbances/outputSandbox/occurrence_positions.csv")
-
-library(sf)
-library(dplyr)
+# separate occurrenceID into plotID and treeNum
+treeData <- treeData %>% 
+  separate(occurrenceID, into = c("plotID", "tree_number"), sep = "-", convert = TRUE) 
+# remove Es for plot ID prior to join 
+treeData$plotID <- gsub("E", "", as.character(treeData$plotID))
+# change data type
+treeData$plotID <- as.integer(treeData$plotID)
 
 # Example: Assume your data is in a data frame called tree_data with columns: plotID, longitude, latitude
 tree_sf <- treeData %>%
+  filter(!is.na(verbatimLatitude)) %>% 
   st_as_sf(coords = c("verbatimLongitude", "verbatimLatitude"), crs = 4326) %>%  # Convert to sf object with WGS84 CRS
   group_by(plotID) %>%
   summarise(geometry = st_union(geometry)) %>%  # Merge all points in each plot
@@ -124,36 +150,40 @@ tree_sf <- treeData %>%
 # Calculate area in square meters (convert to a projected CRS first)
 tree_sf <- tree_sf %>%
   st_transform(crs = 32611) %>%  # Change to an appropriate UTM zone for your region
-  mutate(area_m2 = st_area(convex_hull))
+  mutate(area_m2 = st_area(convex_hull)) %>% st_drop_geometry()
 
-# View results
-print(tree_sf)
+# join tree polygons with the plot data
+plotData <- left_join(plotData, tree_sf)
 
 # calculate area based on plot type
 plotData <- plotData %>% 
   mutate(area_PILA = case_when(
-    plotShape == "Transect" ~ calculatedLength * width_pila,
-    plotShape == "Balloon" ~ 
+    plotShape == "Transect" ~ trans_length * width_pila,
+    plotShape == "Balloon" ~ as.numeric(area_m2),
+    plotShape == "Trigonometry" ~ as.numeric(area_m2),
+    plotShape == "Observation" ~ NA,
+    TRUE ~ trans_length * width_pila
   ))
 
+plotData <- st_drop_geometry(plotData)  # Removes spatial geometry
 
 # rename and add columns to match template
-eventData <- combinedData %>% rename(eventID = plotID, 
+eventData <- plotData %>% rename(eventID = plotID, 
                                      samplingProtocol = plot_type,
                                      samplingEffort = effort,
                                      verbatimLatitudeStart = plot_beg_UTM_N,
                                      verbatimLongitudeStart = plot_beg_UTM_E,
-                                     verbatimLatitudeStop = plot_end_UTM_N,
-                                     verbatimLongitudeStop = plot_end_UTM_E,
-                                     eventRemarks = plot_notes,
-                                     azimuth = plot_azimuth) %>% 
+                                     verbatimLatitudeStop = verbatimLatitudeEnd,
+                                     verbatimLongitudeStop = verbatimLongitudeEnd,
+                                     eventRemarks = plot_notes
+                                     ) %>% 
   mutate(parentEventID = "", 
          sampleSizeValue = area_PILA, 
          sampleSizeUnit = "square meters",
          waterFeatureName = "",
          countryCode = "US",
          stateProvince = "California",
-         county = "Mariposa", # Mt. Raymond and plot south of fish camp are in Madera and several in Tuolumne
+         county = "", # need to fill in column from st_intersects
          habitatDescription = "mixed-conifer forest",
          verbatimCoordinateSystem = "decimal degrees",
          verbatimSRS = "EPSG:4326", # 26910 for zone 10 plots or 4326 for lat long for all
@@ -164,18 +194,21 @@ eventData <- combinedData %>% rename(eventID = plotID,
          dataAccess = "unrestricted",
          fieldNumber = "",
          fieldNotes = "",
-         verbatimElevation = (plot_elevation_ft * 3.28084), # convert to meters
+         verbatimElevation = (plot_elevation_ft / 3.28084), # convert to meters
          verbatimDepth = "",
          waterFeatureSubstrate = "",
          locationRemarks = "",
          footprintWKT = "",
          footprintSRS = "", 
+         azimuth = as.numeric(plot_azimuth + 12.5),
          verbatimLatitude = verbatimLatitudeStart,
          verbatimLongitude = verbatimLongitudeStart)
 
-eventExcelData <- eventData %>% select (eventID, parentEventID, samplingProtocol, sampleSizeValue, sampleSizeUnit, samplingEffort, startDateTime, endDateTime, waterFeatureName, countryCode, stateProvince, county, habitatDescription, verbatimLatitude, verbatimLongitude, verbatimLatitudeStart, verbatimLongitudeStart, verbatimLatitudeStop, verbatimLongitudeStop, verbatimCoordinateSystem, verbatimSRS, verbatimDatum, coordinateUncertaintyinMeters, coordinatePrecision, publicDisplay, dataAccess, fieldNumber, fieldNotes, eventRemarks, verbatimElevation, verbatimDepth, waterFeatureSubstrate, locationRemarks, footprintWKT, footprintSRS, slope, aspect, azimuth)
 
-write.csv(eventExcelData, "eventExcelTab.csv")
+eventExcelData <- eventData %>% select (eventID, parentEventID, samplingProtocol, sampleSizeValue, sampleSizeUnit, samplingEffort, startDateTime, endDateTime, waterFeatureName, countryCode, stateProvince, county, habitatDescription, verbatimLatitude, verbatimLongitude, verbatimLatitudeStart, verbatimLongitudeStart, verbatimLatitudeStop, verbatimLongitudeStop, verbatimCoordinateSystem, verbatimSRS, verbatimDatum, coordinateUncertaintyinMeters, coordinatePrecision, publicDisplay, dataAccess, fieldNumber, fieldNotes, eventRemarks, plot_elevation_ft, verbatimElevation, verbatimDepth, waterFeatureSubstrate, locationRemarks, footprintWKT, footprintSRS, slope, aspect, azimuth) %>% 
+  arrange(by = eventID)
+
+write.csv(eventExcelData, "/Users/jennifercribbs/Documents/YOSE/NPS_Report/Data Products/gbifEvent.csv")
 
 # Spatial data wrangling to fix up for December deadline
 # For now, changing 2 zone 10 plots by hand in Excel sheet (YPE32, YPE50) to zone 10

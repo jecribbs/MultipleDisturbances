@@ -28,6 +28,8 @@ relativeTreeCalculation <- function(start_E, start_N, bearing, distance) {
   print(list(tree_UTM_E = tree_UTM_E, tree_UTM_N = tree_UTM_N))
 } 
 
+relativeTreeCalculation(0271554, 4182436, 262, 900.9)
+
 # calculate UTM positions for each item in a dataframe
 calculate_tree_positions <- function(data) {
   
