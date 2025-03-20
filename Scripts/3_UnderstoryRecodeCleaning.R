@@ -16,7 +16,7 @@
 # all_plots_understory <- read_csv("UnderstoryDataLong.csv")
 
 # Look at all unique hits
-unique(all_plots_understory$species) # 501
+unique(all_plots_understory$species) # 376 (reduced from 501 when there was incorrect incrementing)
 
 # bar chart to look at frequency of unique hits
 all_plots_understory %>% 
