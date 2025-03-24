@@ -18,12 +18,13 @@ library(tidyverse)
 
 # Set the working directory if not done in step 1
 #setwd("/Users/jennifercribbs/Documents/YOSE/Analysis/MultipleDisturbances/")
-
+setwd("C:/Users/tazli/Downloads/YOSE_SugarPine/MultipleDisturbances")
 
 # Part 1: Bring in understory data for each plot in the YPE_Data folder -----------
 
 # setting the directory for data extraction
-datadir <- "/Users/jennifercribbs/Documents/YOSE/Analysis/MultipleDisturbances/Data/RawData/YPE_Data"
+#datadir <- "/Users/jennifercribbs/Documents/YOSE/Analysis/MultipleDisturbances/Data/RawData/YPE_Data"
+datadir <- "C:/Users/tazli/Downloads/YOSE_SugarPine/DataRaw/YPE_Data"
 
 # provide path for files in datadir
 folders <- list.dirs(datadir, full.names = TRUE)[-c(1,4)] # Ensure full path names are used
