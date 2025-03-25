@@ -13,7 +13,7 @@
 # -------------------------------------------------------------------------
 
 # Read in data (or run scripts 1 and 2)
-# all_plots_understory <- read_csv("UnderstoryDataLong.csv")
+all_plots_understory <- read_csv("UnderstoryDataLong.csv")
 
 # Look at all unique hits
 unique(all_plots_understory$species) # 376 (reduced from 501 when there was incorrect incrementing)
@@ -38,11 +38,19 @@ spellcheck <- all_plots_understory %>%
     species %in% c("rcok", "gravel") ~ "rock",
     species %in% c("^_DD") ~ "wood",
     species == "Pranus" ~ "Prunus",
-    species %in% c("PPREM", "PREM") ~ "Prunus emarginata",
-    species == "cynocerous" ~ "Cynosurus echinatus",
-    species %in% c("striptanthis", "streptanthus tortuosus") ~ "Streptanthus tortuosus",
+    species == "PPREM" ~ "PREM",
+    species == "cynocerous" ~ "CYEC",
+    species %in% c("striptanthis", "streptanthus tortuosus") ~ "STTO",
     species %in% c("Saxifrogacea", "saxifrogacea", "Saxifrage", "unk_saxifrage") ~ "Saxifragaceae",
-    species %in% c("castilleja", "castelleja") ~ "Castilleja sp.",
+    species %in% c("castilleja", "castelleja") ~ "Castilleja",
+    species == "enicamena" ~ "Ericameria",
+    species == "Eriogonum sp." ~ "Eriogonum" ,
+    species == "Eriogunum sp." ~ "Eriogonum",
+    species == "Senicio glomerata" ~ "Senecio glomerata",
+    species == "Achillea millefolia" ~ "Achillea millifolium",
+    species == "AZOC" ~ "Rhododendron occidentale",
+    species == "CAREXI" ~ "Carex",
+    species == "Pseudoghaphalium californicum" ~ "Pseudognaphalium californicum",
     grepl("^QUWE_", species, ignore.case = TRUE) ~ "QUWI",
     TRUE ~ species
   ))
@@ -56,12 +64,20 @@ known <- spellcheck %>%
     #species %in% c("moss1", "moss2") ~ "moss", # do we want to count brophytes, lichens, etc???
     species == "cryptantha/plagiobothrys" ~ "Boraginaceae",
     species == "brome" ~ "Bromus",
-    species == "fireweed" ~ "Chamerion angustifolium",
-    species == "horsetail" ~ "Equisetum sp.",
+    species == "fireweed" ~ "CHAN",
+    species == "horsetail" ~ "Equisetum",
     species == "rush" ~ "juncus",
     species == "unk_apeaceae" ~ "Apiaceae",
-    species %in% c("elgl", "ELGL") ~ "Elymus glaucus",
-    species %in% c("whisker plant", "whisker brush") ~ "Leptosiphon ciliatus",
+    species == "elgl" ~ "ELGL",
+    species %in% c("whisker plant", "whisker brush", "whiskerbrush") ~ "LECI",
+    species == "Taraxacum sp" ~ "Taraxacum",
+    species == "goldenrod" ~ "Solidago",
+    species == "vetch" ~ "Vicia",
+    species == "fern" ~ "Polypodiopsida",
+    species == "Dodder" ~ "Cuscuta",
+    species == "aster" ~ "Asteraceae",
+    species == "grass" ~ "Poaceae",
+    
     TRUE ~ species
   ))
 
