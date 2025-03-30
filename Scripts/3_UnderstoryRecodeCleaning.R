@@ -13,7 +13,7 @@
 # -------------------------------------------------------------------------
 
 # Read in data (or run scripts 1 and 2)
-all_plots_understory <- read_csv("UnderstoryDataLong.csv")
+all_plots_understory <- read_csv("UnderstoryDataLong.csv") #looks like there's still some duplication on the assoc side
 
 # Look at all unique hits
 unique(all_plots_understory$species) # 376 (reduced from 501 when there was incorrect incrementing)
@@ -51,6 +51,10 @@ spellcheck <- all_plots_understory %>%
     species == "AZOC" ~ "Rhododendron occidentale",
     species == "CAREXI" ~ "Carex",
     species == "Pseudoghaphalium californicum" ~ "Pseudognaphalium californicum",
+    species == "HIAE" ~ "HIAL",
+    species == "CIEN" ~ "CEIN",
+    species == "GRER" ~ "GAER",
+    species == "COMO" ~ "CAMO",
     grepl("^QUWE_", species, ignore.case = TRUE) ~ "QUWI",
     TRUE ~ species
   ))
@@ -82,15 +86,14 @@ known <- spellcheck %>%
   ))
 
 # convert codes to scientific names
-mutate(species == case_when(
+known <- known %>% mutate(species == case_when(
   species == "BRTE" ~ "Bromus tectorum",
   species == "RIRO" ~ "Ribes roezlii",
   species == "CEIN" ~ "Ceanothus integerrimus",
   species == "CHFO" ~ "Chamaebatia foliosa",
-  species -- "ARVI" ~ "Arctostaphylos viscida"
-  
+  species == "ARVI" ~ "Arctostaphylos viscida"
+  )
 )
-       )
 
 # Look at all unique hits
 unique(known$species) # 479
