@@ -55,6 +55,10 @@ spellcheck <- all_plots_understory %>%
     species == "CIEN" ~ "CEIN",
     species == "GRER" ~ "GAER",
     species == "COMO" ~ "CAMO",
+    species == "STFO" ~ "STTO",
+    species == "SYCO" ~ "SYMO",
+    species == "PITO" ~ "Diplacus torreyi",
+    species == "ERHU" ~ "ERNU",
     grepl("^QUWE_", species, ignore.case = TRUE) ~ "QUWI",
     TRUE ~ species
   ))
@@ -105,6 +109,7 @@ carexcheck <- known %>%
     species == "sedge" ~ "Carex sp.",
     species == "carex" ~ "Carex sp.",
     species == "CAREXI" ~ "Carex sp.",
+    species == "CAREX" ~ "Carex sp.",
     TRUE ~ species
   ))
 # Look at all unique hits
@@ -113,7 +118,7 @@ unique(carexcheck$species) # 424
 # lump all unknown grasses for now
 grassgroup <- carexcheck %>% 
   mutate(species = case_when(
-    grepl("^grass_", species, ignore.case = TRUE) ~ "Poaceae",
+    grepl("^grass_", species, ignore.case = TRUE) ~ "Poaceae", #any common names w/ grass that aren't Poaceae?
     TRUE ~ species
   ))
 # Look at all unique hits
