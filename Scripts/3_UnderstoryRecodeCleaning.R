@@ -16,7 +16,7 @@
 all_plots_understory <- read_csv("UnderstoryDataLong.csv") #looks like there's still some duplication on the assoc side
 
 # Look at all unique hits
-unique(all_plots_understory$species) # 376 (reduced from 501 when there was incorrect incrementing)
+unique(all_plots_understory$species) # 375 (reduced from 501 when there was incorrect incrementing)
 
 # bar chart to look at frequency of unique hits
 all_plots_understory %>% 
@@ -30,13 +30,13 @@ all_plots_understory %>%
   ylab("Proportion") +
   coord_flip()
 
-# Correct misspellings
+# Correct misspellings and misidentifications
 spellcheck <- all_plots_understory %>% 
   mutate(species = case_when(
     species %in% c("littter", "ltter", "littler", "litterlitter", "lItter", "pinecone", "bark", "unknown_DD") ~ "litter",
     species %in% c("bare", "dirt", "DG", "dg") ~ "bareground",
     species %in% c("rcok", "gravel") ~ "rock",
-    species %in% c("^_DD") ~ "wood",
+    str_detect(species, "_DD") ~ "wood",
     species == "Pranus" ~ "Prunus",
     species == "PPREM" ~ "PREM",
     species == "cynocerous" ~ "CYEC",
@@ -56,10 +56,20 @@ spellcheck <- all_plots_understory %>%
     species == "GRER" ~ "GAER",
     species == "COMO" ~ "CAMO",
     species == "STFO" ~ "STTO",
-    species == "SYCO" ~ "SYMO",
+    species %in% c("SYCO", "GAHI") ~ "SYMO", #paper data sheet said creeping snowberry; recoded to correct snowberry
     species == "PITO" ~ "Diplacus torreyi",
     species == "ERHU" ~ "ERNU",
+    species == "DOOB" ~ "GOOB",
+    species == "MYOD" ~ "Osmorhiza", #paper data sheet said sweet cicely; recoded to correct sweet cicely
+    species == "GADS" ~ "GADI",
+    species == "RALE" ~ "RULE",
+    species == "QUDU" ~ "Quercus berberidifolia", #incorrect scrub oak
+    species == "DEMI" ~ "DERI", #misspelling of species code
+    species == "PUCA" ~ "ROCA",
+    species == "SASC" ~ "Salix", #insufficient evidence of species-level ID
+    species == "PEHE" && plotID %in% c("3", "4", "9") ~ "Penstemon", #paper data sheet said penstemon or blue penstemon
     grepl("^QUWE_", species, ignore.case = TRUE) ~ "QUWI",
+    species == "TOPU" ~ "TODI", #incorrect poison oak entered
     TRUE ~ species
   ))
 
@@ -85,6 +95,7 @@ known <- spellcheck %>%
     species == "Dodder" ~ "Cuscuta",
     species == "aster" ~ "Asteraceae",
     species == "grass" ~ "Poaceae",
+    species == "piperia" ~ "Platanthera", #genus pipera subsumed
     
     TRUE ~ species
   ))
