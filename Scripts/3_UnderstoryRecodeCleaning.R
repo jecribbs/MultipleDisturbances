@@ -70,6 +70,11 @@ spellcheck <- all_plots_understory %>%
     species == "PEHE" && plotID %in% c("3", "4", "9") ~ "Penstemon", #paper data sheet said penstemon or blue penstemon
     grepl("^QUWE_", species, ignore.case = TRUE) ~ "QUWI",
     species == "TOPU" ~ "TODI", #incorrect poison oak entered
+    species == "CAUM" ~ "Calyptridium", #paper said pussypaws
+    species == "PENE" ~ "Penstemon", #paper said maybe newberrii
+    species == "COCO_seed" ~ "COCO", #not a tree => seeedlings not recorded
+    species == "BRCA" && plotID == 8 ~ "Poaceae", #paper data sheet said grass 1
+    species == "Juncus" && plotID == 49 ! "Poales", #juncus/round carex
     TRUE ~ species
   ))
 

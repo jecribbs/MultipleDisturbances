@@ -39,4 +39,3 @@ convert_understory_data_to_long <- function(understory_data) {
   
   return(species_understory_long) 
 } ## End function
-
