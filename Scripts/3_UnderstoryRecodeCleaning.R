@@ -15,6 +15,9 @@
 # Read in data (or run scripts 1 and 2)
 all_plots_understory <- read_csv("UnderstoryDataLong.csv") #looks like there's still some duplication on the assoc side
 
+##-------------------------- Part 1: clean data "manually" in R ----------------------------
+#Includes fixing misspellings and incorrect entries or common names-------------------------
+
 # Look at all unique hits
 unique(all_plots_understory$species) # 375 (reduced from 501 when there was incorrect incrementing)
 
@@ -67,21 +70,23 @@ spellcheck <- all_plots_understory %>%
     species == "DEMI" ~ "DERI", #misspelling of species code
     species == "PUCA" ~ "ROCA",
     species == "SASC" ~ "Salix", #insufficient evidence of species-level ID
-    species == "PEHE" && plotID %in% c("3", "4", "9") ~ "Penstemon", #paper data sheet said penstemon or blue penstemon
+    species == "PEHE" & plotID %in% c("3", "4", "9") ~ "Penstemon", #paper data sheet said penstemon or blue penstemon
     grepl("^QUWE_", species, ignore.case = TRUE) ~ "QUWI",
     species == "TOPU" ~ "TODI", #incorrect poison oak entered
     species == "CAUM" ~ "Calyptridium", #paper said pussypaws
     species == "PENE" ~ "Penstemon", #paper said maybe newberrii
     species == "COCO_seed" ~ "COCO", #not a tree => seeedlings not recorded
-    species == "BRCA" && plotID == 8 ~ "Poaceae", #paper data sheet said grass 1
-    species == "Juncus" && plotID == 49 ! "Poales", #juncus/round carex
+    species == "BRCA" & plotID == 8 ~ "Poaceae", #paper data sheet said grass 1
+    species %in% c("Juncus", "juncus") & plotID %in% c(49,73) ~ "Poales", #on paper as juncus/round carex
+    species == "GAPRO" ~ "Pyrola", #on paper as wintergreen
+    species == "CYOF" ~ "Adelinia grandis",
     TRUE ~ species
   ))
 
 # Look at all unique hits
-unique(spellcheck$species) # 483
-
-# Convert common names to scientific 
+unique(spellcheck$species) #was 483, down to 339 by removing incrementing, recoding some incorrect entries
+ 
+# Convert common names to scientific and fix scientific names
 known <- spellcheck %>% 
   mutate(species = case_when(
     #species %in% c("moss1", "moss2") ~ "moss", # do we want to count brophytes, lichens, etc???
@@ -105,18 +110,20 @@ known <- spellcheck %>%
     TRUE ~ species
   ))
 
-# convert codes to scientific names
-known <- known %>% mutate(species == case_when(
-  species == "BRTE" ~ "Bromus tectorum",
-  species == "RIRO" ~ "Ribes roezlii",
-  species == "CEIN" ~ "Ceanothus integerrimus",
-  species == "CHFO" ~ "Chamaebatia foliosa",
-  species == "ARVI" ~ "Arctostaphylos viscida"
-  )
-)
+# # convert codes to scientific names - will be taken care of with dictionary
+# known <- known %>% mutate(species == case_when(
+#   species == "BRTE" ~ "Bromus tectorum",
+#   species == "RIRO" ~ "Ribes roezlii",
+#   species == "CEIN" ~ "Ceanothus integerrimus",
+#   species == "CHFO" ~ "Chamaebatia foliosa",
+#   species == "ARVI" ~ "Arctostaphylos viscida"
+#   )
+# )
 
 # Look at all unique hits
-unique(known$species) # 479
+unique(known$species) # 479 ->333
+
+##----------- Part 2: lump various Poales, forbs, life stages for visualization ---------------------------
 
 # lump all carex for now
 carexcheck <- known %>% 
@@ -129,7 +136,7 @@ carexcheck <- known %>%
     TRUE ~ species
   ))
 # Look at all unique hits
-unique(carexcheck$species) # 424
+unique(carexcheck$species) # 424 ->328
 
 # lump all unknown grasses for now
 grassgroup <- carexcheck %>% 
@@ -138,7 +145,7 @@ grassgroup <- carexcheck %>%
     TRUE ~ species
   ))
 # Look at all unique hits
-unique(grassgroup$species) # 373
+unique(grassgroup$species) # 373 ->236
 
 # lump all unknown forbs for now
 forbfest <- grassgroup %>% 
@@ -149,7 +156,7 @@ forbfest <- grassgroup %>%
   ))
 
 # Look at all unique hits
-unique(forbfest$species) # 315
+unique(forbfest$species) # 315 -> 318
 
 # bar chart to look at frequency of unique hits
 forbfest %>% 
@@ -181,7 +188,7 @@ allLifeStages <- forbfest %>%
     TRUE ~ species
   ))
 
-unique(allLifeStages$species) # 283
+unique(allLifeStages$species) # 283 ->292
 
 # bar chart to look at frequency of unique hits
 allLifeStages %>% 
@@ -205,3 +212,48 @@ summarize (n = n()) %>%
   xlab("Hit") +
   ylab("Proportion") +
   theme(axis.text.x=element_text(angle=90,hjust=1))
+
+##----------------- Part 3: Use Unknown Veg Notes to apply updated IDs -----------------------
+#This may eventually migrate to a separate script
+
+##-------- Part 4: Use Species Code Dictionary & Taxonstand to apply scientific names --------
+#This may eventually migrate to a separate script
+
+#read in Species Code Dictionary csv file
+spDict <- read_csv("Data/RawData/Test Species Code Dictionary - Sheet1.csv")
+#replace spaces with underscores in column names
+names(spDict) <- gsub(" ", "_", names(spDict))
+#keep only relevant columns
+spDict <- spDict %>% select(Code, Scientific_Name)
+
+#use merge to map codes in dictionary to codes in df
+known <- merge(known, spDict, by.x = "species", by.y = "Code", all.x = F) #CHANGE BACK TO TRUE to keep all vals
+known <- known %>% 
+  mutate(species = case_when(
+    !is.na(known$Scientific_Name) ~ known$Scientific_Name
+  )) %>% select(!Scientific_Name)
+
+##########################################################################################
+#From here on, all of this will apply to both YOSE and SEKI data. May need to move to another script or bring in SEKI data
+
+library(U.Taxonstand)
+library(readxl)
+
+#U.Taxonstand database
+spDatabase1 <- read_excel("C:/Users/tazli/Downloads/YOSE_SugarPine/DataClean/Plants_LCVP_database_part1.xlsx")
+spDatabase2 <- read_excel("C:/Users/tazli/Downloads/YOSE_SugarPine/DataClean/Plants_LCVP_database_part2.xlsx")
+spDatabase3 <- read_excel("C:/Users/tazli/Downloads/YOSE_SugarPine/DataClean/Plants_LCVP_database_part3.xlsx")
+spDatabase <- rbind(spDatabase1, spDatabase2, spDatabase3)
+rm(spDatabase1, spDatabase2, spDatabase3)
+
+#use U.Taxonstand to spell check scientific names (takes a second)
+nameMatch <- nameMatch(spList=known$species, spSource=spDatabase, author = TRUE, max.distance= 4)
+#keep only rows with fuzzy matching
+nameMatchFuzzy <- nameMatch %>% select(Submitted_Name, Fuzzy, Name_in_database) %>% filter(Fuzzy == TRUE) %>% unique()
+#match accepted names to the misspelled rows
+known <- merge(known, nameMatchFuzzy, by.x = "species", by.y = "Submitted_Name", all.x = TRUE)
+#change misspelled names to database names
+known <- known %>% mutate(species = case_when(
+  !is.na(Name_in_database) & Fuzzy == TRUE ~ Name_in_database, 
+  TRUE ~ species
+)) %>% select(species, plotID, dOut_m, pin_vs_assoc)
