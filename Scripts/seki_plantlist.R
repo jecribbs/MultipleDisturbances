@@ -89,7 +89,8 @@ spellcheck <- understory_plot_combined %>%
     species == "Quercus kellogii" ~ "Quercus kelloggii",
     species == "Ribes viscosisimum" ~ "Ribes viscosissimum",
     species == "Symphocarpus roundifolius" ~ "Symphoricarpos rotundifolius",
-    species == "Symphotrichum ascendens" ~ "Symphyotrichum ascendens"
+    species == "Symphotrichum ascendens" ~ "Symphyotrichum ascendens",
+    species == "Gallium sparsiflorum" ~ "Galium sparsiflorum"
     ))
 
 #replace common names with scientific
