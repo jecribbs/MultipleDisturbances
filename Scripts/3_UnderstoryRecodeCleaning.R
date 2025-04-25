@@ -1,7 +1,7 @@
 
 # (3) Recode And Clean Understory Data/Pre-processing for Richness----------------------------------------
 
-# Authors: Jenny Cribbs
+# Authors: Jenny Cribbs & Tazlina Dentinger
 # Date: 21 April 2024
 
 # Input: all_plots_understory data frame with 4 columns from step 2
@@ -13,9 +13,43 @@
 # -------------------------------------------------------------------------
 
 # Read in data (or run scripts 1 and 2)
-all_plots_understory <- read_csv("UnderstoryDataLong.csv") #looks like there's still some duplication on the assoc side
+all_plots_understory <- read_csv("UnderstoryDataLong.csv")
 
-##-------------------------- Part 1: clean data "manually" in R ----------------------------
+#removed duplicated associated species rows:
+all_plots_understory <- all_plots_understory %>% 
+  filter(pin_vs_assoc == "pin" | (pin_vs_assoc == "assoc" & dOut_m == 2))
+
+##---------------------- Part 1: Add identifications made post-field season ----------------------------
+#Based on review documented in Unknown Veg Notes -----------------------------------------------------
+
+#Still needs full check with full Unknown Veg Notes
+
+#read in Unknown Veg csv file
+unkVeg <- read_csv("Data/RawData/Test Unknown Veg Notes - UnknownPlants.csv")
+#replace spaces with underscores in column names
+names(unkVeg) <- gsub(" ", "_", names(unkVeg))
+#keep only relevant columns and YOSE rows
+unkVeg <- unkVeg %>% select(project, asEntered, code, bestGuess, nextSteps, plotID) %>% filter(project == "YOSE")
+
+#Create unique columns by plotID and species in each df to merge
+unkVeg <- unkVeg %>% mutate(
+  uniqueID = paste0(asEntered, plotID))
+all_plots_understory <- all_plots_understory %>% mutate(
+  uniqueID = paste0(species, plotID))
+
+#use merge to map codes in dictionary to codes in df
+all_plots_wUnk <- merge(all_plots_understory, unkVeg, by = "uniqueID", all.x = T) #CHANGE BACK TO TRUE 
+all_plots_merged <- all_plots_wUnk %>% 
+  mutate(species = case_when(
+    nextSteps %in% c("ID'ed", "Not ID-able") ~ bestGuess, #need to clean up bestGuess column before using - or use Code?
+    asEntered == NA_character_ ~ "ooooooo", #what the hell man - doesn't remotely work. Neither does regular NA or is.na
+    #when there is no entry in unkVeg ~ species
+    TRUE ~ species
+  )) %>% select(plotID.x, dOut_m, pin_vs_assoc, species) %>% rename(plotID = plotID.x)
+
+#change df name back to whatever feeds into Part 2
+
+##-------------------------- Part 2: clean data "manually" in R ----------------------------
 #Includes fixing misspellings and incorrect entries or common names-------------------------
 
 # Look at all unique hits
@@ -33,10 +67,19 @@ all_plots_understory %>%
   ylab("Proportion") +
   coord_flip()
 
+#Standardize species ending (currently no "sp")
+all_plots_understory_sp <- all_plots_understory %>% 
+  mutate(species = case_when(
+    str_detect(species, " sp.") ~ unlist(str_split(species, " "))[1],
+    str_detect(species, "Taraxacum sp") ~ "Taraxacum", #only case that doesn't include a "."
+    str_detect(species, "_sp") ~ unlist(str_split(species, "_"))[1],
+    TRUE ~ species
+  ))
+
 # Correct misspellings and misidentifications
 spellcheck <- all_plots_understory %>% 
   mutate(species = case_when(
-    species %in% c("littter", "ltter", "littler", "litterlitter", "lItter", "pinecone", "bark", "unknown_DD") ~ "litter",
+    species %in% c("littter", "ltter", "littler", "litterlitter", "lItter", "pinecone", "bark") ~ "litter", #removed "unknown_DD" from list - should be in wood
     species %in% c("bare", "dirt", "DG", "dg") ~ "bareground",
     species %in% c("rcok", "gravel") ~ "rock",
     str_detect(species, "_DD") ~ "wood",
@@ -79,7 +122,10 @@ spellcheck <- all_plots_understory %>%
     species == "BRCA" & plotID == 8 ~ "Poaceae", #paper data sheet said grass 1
     species %in% c("Juncus", "juncus") & plotID %in% c(49,73) ~ "Poales", #on paper as juncus/round carex
     species == "GAPRO" ~ "Pyrola", #on paper as wintergreen
-    species == "CYOF" ~ "Adelinia grandis",
+    species == "LOIN" ~ "shrub_1", #based on note on datasheet 
+    species == "LUMA" ~ "LULA", #L. macrophyllum doesn't exist
+    species == "Juncus patens" ~ "Juncus", #insufficient evidence of species-level ID
+    species == "Erythranthre" ~ "Erythranthe",
     TRUE ~ species
   ))
 
@@ -95,7 +141,7 @@ known <- spellcheck %>%
     species == "fireweed" ~ "CHAN",
     species == "horsetail" ~ "Equisetum",
     species == "rush" ~ "juncus",
-    species == "unk_apeaceae" ~ "Apiaceae",
+    species %in% c("unk_apeaceae", "unk_apiaceae") ~ "Apiaceae",
     species == "elgl" ~ "ELGL",
     species %in% c("whisker plant", "whisker brush", "whiskerbrush") ~ "LECI",
     species == "Taraxacum sp" ~ "Taraxacum",
@@ -105,7 +151,9 @@ known <- spellcheck %>%
     species == "Dodder" ~ "Cuscuta",
     species == "aster" ~ "Asteraceae",
     species == "grass" ~ "Poaceae",
-    species == "piperia" ~ "Platanthera", #genus pipera subsumed
+    species == "piperia" ~ "Platanthera", #genus Pipera subsumed
+    species == "SACE" ~ "SAME", #Blue Elder moved to S. mexicana
+    species == "CYOF" ~ "Adelinia grandis",
     
     TRUE ~ species
   ))
@@ -123,16 +171,13 @@ known <- spellcheck %>%
 # Look at all unique hits
 unique(known$species) # 479 ->333
 
-##----------- Part 2: lump various Poales, forbs, life stages for visualization ---------------------------
+##----------- Part 3: lump various Poales, forbs, life stages for visualization ---------------------------
 
 # lump all carex for now
 carexcheck <- known %>% 
   mutate(species = case_when(
-    grepl("^carex_", species, ignore.case = TRUE) ~ "Carex sp.",
-    species == "sedge" ~ "Carex sp.",
-    species == "carex" ~ "Carex sp.",
-    species == "CAREXI" ~ "Carex sp.",
-    species == "CAREX" ~ "Carex sp.",
+    str_detect(species, "(?i)carex_") ~ "Carex",
+    str_detect(species, "(?i)carex sp") ~ "Carex",
     TRUE ~ species
   ))
 # Look at all unique hits
@@ -213,10 +258,11 @@ summarize (n = n()) %>%
   ylab("Proportion") +
   theme(axis.text.x=element_text(angle=90,hjust=1))
 
-##----------------- Part 3: Use Unknown Veg Notes to apply updated IDs -----------------------
+##----------------- Part 4: Use Unknown Veg Notes to apply updated IDs -----------------------
 #This may eventually migrate to a separate script
+#Needs to be before Part 1 I think.
 
-##-------- Part 4: Use Species Code Dictionary & Taxonstand to apply scientific names --------
+##-------- Part 5: Use Species Code Dictionary & Taxonstand to apply scientific names --------
 #This may eventually migrate to a separate script
 
 #read in Species Code Dictionary csv file
@@ -257,3 +303,5 @@ known <- known %>% mutate(species = case_when(
   !is.na(Name_in_database) & Fuzzy == TRUE ~ Name_in_database, 
   TRUE ~ species
 )) %>% select(species, plotID, dOut_m, pin_vs_assoc)
+
+##-------------------------------Part 6: Write dataframe to csv-----------------------------------
