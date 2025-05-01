@@ -11,12 +11,17 @@
 __pycache__/
 *.py[cod]
 
-# Outputs and scratch files
+# Inputs, outputs and scratch files
 *.csv
 *.tsv
 *.log
 *.tmp
 *.out
+*.xlsx
+*.xlsm
+*.png
+*.jpg
+Data/
 
 # Folders for intermediate or scratch work
 scratch/
