@@ -18,6 +18,9 @@ Output/           CSV files for NPS Species Inventory Excel File
 
 Scripts/              R source code for cleaning data
 
+└── Exploratory/        Scripts that are shared, but in progress
+
+
 
 README.md
 

@@ -13,7 +13,8 @@
 # -------------------------------------------------------------------------
 
 # set working directory to project dir 
-setwd("/Users/jennifercribbs/Documents/YOSE/Analysis/MultipleDisturbances")
+#setwd("/Users/jennifercribbs/Documents/YOSE/Analysis/MultipleDisturbances")
+setwd("C:/Users/tazli/Downloads/YOSE_SugarPine/MultipleDisturbances")
 
 # Read function into the global environment 
 convert_understory_data_to_long <- function(understory_data) {
