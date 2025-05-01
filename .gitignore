@@ -31,6 +31,7 @@ output/
 dataSandbox/
 scriptsSandbox/
 outputSandbox/
+Scripts_backup/
 
 # Files to exclude but keep locally
 !README.md  # Example: ensures README is always tracked
