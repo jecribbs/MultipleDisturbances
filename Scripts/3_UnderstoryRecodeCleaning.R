@@ -38,6 +38,7 @@ spellcheck <- all_plots_understory %>%
     species %in% c("rcok", "gravel") ~ "rock",
     species %in% c("^_DD") ~ "wood",
     species == "Pranus" ~ "Prunus",
+    species == "VECA" ~ "Fragaria vesca",
     species %in% c("PPREM", "PREM") ~ "Prunus emarginata",
     species == "cynocerous" ~ "Cynosurus echinatus",
     species %in% c("striptanthis", "streptanthus tortuosus") ~ "Streptanthus tortuosus",

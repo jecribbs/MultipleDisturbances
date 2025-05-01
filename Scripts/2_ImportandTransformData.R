@@ -23,7 +23,7 @@ library(tidyverse)
 # Part 1: Bring in understory data for each plot in the YPE_Data folder -----------
 
 # setting the directory for data extraction
-datadir <- "/Users/jennifercribbs/Documents/YOSE/Analysis/MultipleDisturbances/Data/RawData/YPE_Data"
+datadir <- "/Users/jennifercribbs/Documents/YOSE/Analysis/MultipleDisturbances/dataSandbox/RawData/YPE_Data"
 
 # provide path for files in datadir
 folders <- list.dirs(datadir, full.names = TRUE)[-c(1,4)] # Ensure full path names are used
