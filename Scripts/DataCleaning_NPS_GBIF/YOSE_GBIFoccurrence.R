@@ -23,8 +23,7 @@ setwd("/Users/jennifercribbs/Documents/YOSE/Analysis/MultipleDisturbances/")
 
 # Bring in the PILA data for each plot in the project folder from Google Sheets
 # setting the directory for data extraction--change to your local data directory
-datadir <- "/Users/jennifercribbs/Documents/YOSE/Analysis/MultipleDisturbances/Data/RawData/YPE_Data"
- #datadir <- "/Users/tazli/Downloads/YOSE_SugarPine/MultipleDisturbances/Data/RawData/YPE_Data"
+datadir <- here("dataSandbox/RawData/YPE_Data")
 
 # provide path for files in datadir
 folders <- list.dirs(datadir, full.names = TRUE)[-c(1,4)] # Ensure full path names are used
@@ -401,7 +400,7 @@ tree_list <- tree_list %>%
 
 # transform damage codes list to and standardize break char and damage codes to FHW codes
 tree_list$damageCodes <- gsub('BROKE', 'BROK',
-                              gsub('BTOP', 'BROK', # change to BROK after verifying BTOPs
+                              gsub('BTOP', 'BROK',
                                    gsub('_', '|', 
                                         gsub(', ', '|', 
                                              gsub('CROOK', 'CROK', tree_list$damageCodes)))))
@@ -423,14 +422,11 @@ tree_list <- tree_list %>%
          crokDamage = if_else(str_detect(notes, "(?i)crok") | str_detect(notes, "(?i)crook"), "CROK", "", missing = ""),
          fireDamage = if_else(str_detect(notes, "(?i)char") | str_detect(notes, "(?i)torched") | str_detect(notes, "(?i)crisp") | str_detect(notes, "(?i)fire") | str_detect(notes, "(?i)burn") | str_detect(notes, "(?i)fs") | str_detect(notes, "(?i)cat\\s+face"), "FIRE", "", missing = ""),
          forkDamage = if_else(str_detect(notes, "(?i)fork"), "FORK", "", missing = ""), #why so few of these?
-         mammDamage = if_else(str_detect(notes, "(?i)rodent") | str_detect(notes, "(?i)bear" ), "MAMM", "", missing = ""), #what to do with 1 instance of mech or rodent? probably just mech, since more general
-         mistDamage = if_else(str_detect(notes, "(?i)mist"), "MIST", "", missing = ""), #this may miss things that are only called as brooming, but I think that's best
+         mammDamage = if_else(str_detect(notes, "(?i)rodent") | str_detect(notes, "(?i)bear" ), "MAMM", "", missing = ""),
+         mistDamage = if_else(str_detect(notes, "(?i)mist"), "MIST", "", missing = ""), 
          sparDamage = if_else(str_detect(notes, "(?i)spars") | str_detect(notes, "(?i)thin"), "SPAR", "", missing = ""),
          twinDamage = if_else(str_detect(notes, "(?i)twin"), "TWIN", "", missing = "")
          )
-
-#temporary object to check the damage columns
-#treeDMG <- filter(tree_list, bromDamage == "BROM") %>% select(plotID, treeNum, species, percentLive, damageCodes, notes, bromDamage)
 
 #remove false positives in fireDamage column, e.g. "offshoot" and "no fire scar"
 tree_list <- tree_list %>%
