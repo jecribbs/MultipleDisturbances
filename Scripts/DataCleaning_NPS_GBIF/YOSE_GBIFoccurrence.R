@@ -227,7 +227,7 @@ pila_list <- pila_list %>%
       boleChar == "N" ~ "N",
       boleChar == "<10" ~ "Y",
       is.na(boleChar) ~ NA_character_,
-      TRUE ~ NA_character_ #this does not have any entries, and shouldn't.
+      TRUE ~ NA_character_
     )
   ) 
 
@@ -317,13 +317,13 @@ cleanPILAdata <- pila_list %>%
          activeBoleCanker, inactiveBoleCanker, 
          deadTop, percentLive, boleChar_text, boleChar_numeric, damageCodes)
 
-# Part3: YOSE PILA Data Export -------------------------
+# Part3: YOSE PILA Data Export ------------------------------------------------------------
 
-# save as a csv file in the working directory
-write.csv(cleanPILAdata, "YOSE_cleanPILAdata.csv", row.names = FALSE) # don't save first column
+# save as a csv file in the dataSandbox
+write.csv(cleanPILAdata, "dataSandbox/CleanData/YOSE_cleanPILAList.csv", row.names = FALSE) # don't save first column
 
-# Part4: Associated Tree Data Import -------------------------
-# Bring in the tree data for each plot in the YPE_Data folder -----------
+# Part4: Associated Tree Data Import --------------------------------------------------------------
+# Bring in the tree data for each plot in the YPE_Data folder
 
 # provide path for files in datadir
 folders <- list.dirs(datadir, full.names = TRUE)[-c(1,4)] # Ensure full path names are used
@@ -358,7 +358,7 @@ summary(tree_list)
 
 # fix plotID naming
 tree_list <- tree_list %>% 
-  rename(plotID = plot) # plotID entered as plot for Trees
+  rename(plotID = plot)
 
 # convert dSide Left to numeric 
 tree_list$dSideL_m <- as.numeric(tree_list$dSideL_m) # likely dash entry error
@@ -383,8 +383,7 @@ tree_list <- tree_list %>%
 # check species field again
 unique(tree_list$species)
 
-#remove SALIX and CONU because they should be shrubs 
-# although some are tree-like, these species were likely not assessed as trees uniformly across the plots
+#remove SALIX and CONU -- should be shrubs 
 tree_list <- tree_list %>% 
   filter(species != "CONU") %>% 
   filter(species != "SALIX") # removes only 2 records total (3309 to 3307)
@@ -479,9 +478,8 @@ tree_list <- mutate(tree_list,damageCodes = case_when(
 
 # Part 6: Write out Clean Tree List -------------------------
 
-#maybe select out 
 # write results to a csv in case GBIF format is not desirable
-write.csv(tree_list, "YOSE_cleanTreeList.csv")
+write.csv(tree_list, "dataSandbox/CleanData/YOSE_cleanTreeList.csv")
 
 # Part7: Reorganization for GBIF -------------------------
 
@@ -571,8 +569,8 @@ gbifTreeOccurrence <- treeOccurrenceData %>%
 # Part8: Combine PILA and Tree Data -------------------------
 
 gbifOccurrence <- rbind(cleanPILAdata, gbifTreeOccurrence)
-# save as a csv file in the working directory
 
+#assign tree reproductive status 
 gbifOccurrence <- gbifOccurrence %>%
   mutate(
     reproductiveCondition = case_when(
@@ -594,7 +592,7 @@ gbifOccurrence <- gbifOccurrence %>%
     })
   )
 # bring in latitude and longitude from 1_SpatialDataWrangling.R
-occurrence_positions <- read.csv("/Users/jennifercribbs/Documents/YOSE/Analysis/MultipleDisturbances/outputSandbox/occurrence_positions.csv")
+occurrence_positions <- read.csv("outputSandbox/occurrence_positions.csv")
 
 # strip away any hidden characters
 gbifOccurrence$occurrenceID <- trimws(gbifOccurrence$occurrenceID)
@@ -604,7 +602,7 @@ occurrence_positions$occurrenceID <- trimws(occurrence_positions$occurrenceID)
 gbifOccurrenceTest <- left_join(gbifOccurrence, occurrence_positions, by = "occurrenceID")
 
 # write out results for occurrence tab
-write.csv(gbifOccurrenceTest, "/Users/jennifercribbs/Documents/YOSE/Analysis/MultipleDisturbances/outputSandbox/YOSE_GBIFoccurrence.csv", row.names = FALSE) # don't save first column
+write.csv(gbifOccurrenceTest, "outputSandbox/YOSE_GBIFoccurrence.csv", row.names = FALSE) # don't save first column
 
 
 
