@@ -6,18 +6,31 @@
 
 # Input: all_plots_understory data frame with 4 columns from step 2
 
-# Code description: This cleaning script recodes mispellings, redundancies/synonyms e.g. scientific code and common name or code and full name, and lumps unknowns and life stages. 
+# Code description: This cleaning script recodes misspellings, redundancies/synonyms e.g. scientific code and common name or code and full name, and lumps unknowns and life stages. 
 
 # Desired Output: (1) A clean dataframe with one consistent code for each species, substrate, or association. (2) For richness, we will then filter out the substrates, so that the richness calculation includes only unique understory plant species (hits + associations). Unknowns will have to be filtered out entirely or lumped...discuss! (3) For percent cover, filter out associations since we only want to know what was hit (species and substrate). Probably best to put 2 and 3 as part of their respective analysis scripts.
 
 # -------------------------------------------------------------------------
 
+library(tidyverse)
+
 # Read in data (or run scripts 1 and 2)
-all_plots_understory <- read_csv("UnderstoryDataLong.csv")
+all_plots_understory <- read_csv("dataSandbox/RawData/UnderstoryDataLong.csv")
 
 #removed duplicated associated species rows:
 all_plots_understory <- all_plots_understory %>% 
   filter(pin_vs_assoc == "pin" | (pin_vs_assoc == "assoc" & dOut_m == 2))
+
+#create unique ID for each plot & hit
+all_plots_understory <- all_plots_understory %>% mutate(id = paste0("pl", plotID, "_", "pt", dOut_m))
+
+#number pin values to track the order they were hit in
+all_plots_understory <- all_plots_understory %>% group_by(id) %>% mutate(hitNum = row_number())
+all_plots_understory <- all_plots_understory %>% mutate(hitNum = case_when(
+  pin_vs_assoc == "pin" ~ hitNum,
+  pin_vs_assoc == "assoc" ~ NA,
+  TRUE ~ NA
+)) %>% ungroup () %>% select(!id)
 
 ##---------------------- Part 1: Add identifications made post-field season ----------------------------
 #Based on review documented in Unknown Veg Notes -----------------------------------------------------
@@ -68,7 +81,7 @@ all_plots_understory %>%
   coord_flip()
 
 #Standardize species ending (currently no "sp")
-all_plots_understory_sp <- all_plots_understory %>% 
+all_plots_understory <- all_plots_understory %>% 
   mutate(species = case_when(
     str_detect(species, " sp.") ~ unlist(str_split(species, " "))[1],
     str_detect(species, "Taraxacum sp") ~ "Taraxacum", #only case that doesn't include a "."
@@ -77,7 +90,7 @@ all_plots_understory_sp <- all_plots_understory %>%
   ))
 
 # Correct misspellings and misidentifications
-spellcheck <- all_plots_understory %>% 
+all_plots_understory <- all_plots_understory %>% 
   mutate(species = case_when(
     species %in% c("littter", "ltter", "littler", "litterlitter", "lItter", "pinecone", "bark") ~ "litter", #removed "unknown_DD" from list - should be in wood
     species %in% c("bare", "dirt", "DG", "dg") ~ "bareground",
@@ -131,10 +144,10 @@ spellcheck <- all_plots_understory %>%
   ))
 
 # Look at all unique hits
-unique(spellcheck$species) #was 483, down to 339 by removing incrementing, recoding some incorrect entries
+unique(all_plots_understory$species) #was 483, down to 339 by removing incrementing, recoding some incorrect entries
  
 # Convert common names to scientific and fix scientific names
-known <- spellcheck %>% 
+all_plots_understory <- all_plots_understory %>% 
   mutate(species = case_when(
     #species %in% c("moss1", "moss2") ~ "moss", # do we want to count brophytes, lichens, etc???
     species == "cryptantha/plagiobothrys" ~ "Boraginaceae",
@@ -170,12 +183,12 @@ known <- spellcheck %>%
 # )
 
 # Look at all unique hits
-unique(known$species) # 479 ->333
+unique(all_plots_understory$species) # 479 ->333
 
 ##----------- Part 3: lump various Poales, forbs, life stages for visualization ---------------------------
 
 # lump all carex for now
-carexcheck <- known %>% 
+carexcheck <- all_plots_understory %>% 
   mutate(species = case_when(
     str_detect(species, "(?i)carex_") ~ "Carex",
     str_detect(species, "(?i)carex sp") ~ "Carex",
@@ -259,11 +272,7 @@ summarize (n = n()) %>%
   ylab("Proportion") +
   theme(axis.text.x=element_text(angle=90,hjust=1))
 
-##----------------- Part 4: Use Unknown Veg Notes to apply updated IDs -----------------------
-#This may eventually migrate to a separate script
-#Needs to be before Part 1 I think.
-
-##-------- Part 5: Use Species Code Dictionary & Taxonstand to apply scientific names --------
+##-------- Part 4: Use Species Code Dictionary & Taxonstand to apply scientific names --------
 #This may eventually migrate to a separate script
 
 #read in Species Code Dictionary csv file
@@ -274,10 +283,10 @@ names(spDict) <- gsub(" ", "_", names(spDict))
 spDict <- spDict %>% select(Code, Scientific_Name)
 
 #use merge to map codes in dictionary to codes in df
-known <- merge(known, spDict, by.x = "species", by.y = "Code", all.x = F) #CHANGE BACK TO TRUE to keep all vals
-known <- known %>% 
+all_plots_understory <- merge(all_plots_understory, spDict, by.x = "species", by.y = "Code", all.x = F) #CHANGE BACK TO TRUE to keep all vals
+all_plots_understory <- all_plots_understory %>% 
   mutate(species = case_when(
-    !is.na(known$Scientific_Name) ~ known$Scientific_Name
+    !is.na(all_plots_understory$Scientific_Name) ~ all_plots_understory$Scientific_Name
   )) %>% select(!Scientific_Name)
 
 ##########################################################################################
