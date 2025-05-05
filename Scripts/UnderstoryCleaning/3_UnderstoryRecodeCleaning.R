@@ -14,17 +14,15 @@
 
 library(tidyverse)
 
-# Read in data (or run scripts 1 and 2)
+# Read in data (or run Understory scripts 1 and 2)
 all_plots_understory <- read_csv("dataSandbox/RawData/UnderstoryDataLong.csv")
 
-#removed duplicated associated species rows:
+#remove duplicated associated species rows:
 all_plots_understory <- all_plots_understory %>% 
   filter(pin_vs_assoc == "pin" | (pin_vs_assoc == "assoc" & dOut_m == 2))
 
-#create unique ID for each plot & hit
+#create unique ID for each plot & hit and number the hits to track the order
 all_plots_understory <- all_plots_understory %>% mutate(id = paste0("pl", plotID, "_", "pt", dOut_m))
-
-#number pin values to track the order they were hit in
 all_plots_understory <- all_plots_understory %>% group_by(id) %>% mutate(hitNum = row_number())
 all_plots_understory <- all_plots_understory %>% mutate(hitNum = case_when(
   pin_vs_assoc == "pin" ~ hitNum,
@@ -39,7 +37,6 @@ all_plots_understory <- all_plots_understory %>% mutate(hitNum = case_when(
 
 #read in Unknown Veg csv file
 unkVeg <- read_csv("Data/RawData/Test Unknown Veg Notes - UnknownPlants.csv")
-#replace spaces with underscores in column names
 names(unkVeg) <- gsub(" ", "_", names(unkVeg))
 #keep only relevant columns and YOSE rows
 unkVeg <- unkVeg %>% select(project, asEntered, code, bestGuess, nextSteps, plotID) %>% filter(project == "YOSE")
@@ -50,15 +47,15 @@ unkVeg <- unkVeg %>% mutate(
 all_plots_understory <- all_plots_understory %>% mutate(
   uniqueID = paste0(species, plotID))
 
-#use merge to map codes in dictionary to codes in df
-all_plots_wUnk <- merge(all_plots_understory, unkVeg, by = "uniqueID", all.x = T) #CHANGE BACK TO TRUE 
+#use merge to map codes in dictionary to codes in df - Something's off here
+all_plots_wUnk <- merge(all_plots_understory, unkVeg, by.x = "uniqueID", by.y = "uniqueID" all.x = F) #CHANGE BACK TO TRUE 
 all_plots_merged <- all_plots_wUnk %>% 
   mutate(species = case_when(
     nextSteps %in% c("ID'ed", "Not ID-able") ~ bestGuess, #need to clean up bestGuess column before using - or use Code?
     asEntered == NA_character_ ~ "ooooooo", #what the hell man - doesn't remotely work. Neither does regular NA or is.na
     #when there is no entry in unkVeg ~ species
     TRUE ~ species
-  )) %>% select(plotID.x, dOut_m, pin_vs_assoc, species) %>% rename(plotID = plotID.x)
+  )) %>% select(plotID.x, dOut_m, pin_vs_assoc, species, nextSteps) %>% rename(plotID = plotID.x)
 
 #change df name back to whatever feeds into Part 2
 
@@ -80,12 +77,13 @@ all_plots_understory %>%
   ylab("Proportion") +
   coord_flip()
 
-#Standardize species ending (currently no "sp")
-all_plots_understory <- all_plots_understory %>% 
+#Standardize species ending (currently no "sp", no _1 etc.)
+all_plots_understory_trim <- all_plots_understory %>% 
   mutate(species = case_when(
     str_detect(species, " sp.") ~ unlist(str_split(species, " "))[1],
     str_detect(species, "Taraxacum sp") ~ "Taraxacum", #only case that doesn't include a "."
     str_detect(species, "_sp") ~ unlist(str_split(species, "_"))[1],
+    str_detect(species, "_\\d+") ~ unlist(str_split(species, "_"))[1],
     TRUE ~ species
   ))
 
@@ -140,6 +138,8 @@ all_plots_understory <- all_plots_understory %>%
     species == "LUMA" ~ "LULA", #L. macrophyllum doesn't exist
     species == "Juncus patens" ~ "Juncus", #insufficient evidence of species-level ID
     species == "Erythranthre" ~ "Erythranthe",
+    species == "RINI" ~ "RIVI", #incorrectly entered from plot 19
+    species == "epilobium" & plotID == 25 ~ "Epilobium brachycarpum",
     TRUE ~ species
   ))
 
