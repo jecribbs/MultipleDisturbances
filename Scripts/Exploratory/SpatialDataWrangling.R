@@ -16,12 +16,13 @@ library(sf)
 library(tmap)
 library(readxl)
 library(writexl)
-# load user defined functions relativeTreeCalculation and calculateTreePositions by running 0_TreePositionCalculationFunctions.R first
-source("/Users/jennifercribbs/Documents/YOSE/Analysis/MultipleDisturbances/Scripts/0_TreePositionCalculationFunctions.R")
 
 # Set the working directory
 setwd("/Users/jennifercribbs/Documents/YOSE/Analysis/MultipleDisturbances/")
 #setwd("/Users/tazli/Downloads/YOSE_SugarPine/MultipleDisturbances")
+
+# load user defined functions relativeTreeCalculation and calculateTreePositions by running 0_TreePositionCalculationFunctions.R first
+source("Scripts/UnderstoryCleaning/0_TreePositionCalculationFunctions.R")
 
 # ~~~~~~~~~~~~~~~~~~~~ PILAs ~~~~~~~~~~~~~~~~~~~~
 # Bring in the PILA data for each plot in the project folder from Google Sheets
@@ -532,7 +533,7 @@ tree_points <- tree_positions %>%
   group_split(UTM_zone) %>%
   map_dfr(function(df) {
     st_as_sf(df, 
-             coords = c("tree_UTM_E", "tree_UTM_N"), 
+             coords = c("tree_UTM_N", "tree_UTM_E"), 
              crs = paste0("+proj=utm +zone=", unique(df$UTM_zone), " +datum=NAD83")) %>%
       st_transform(crs = 4326)  # Convert to lat/long
   })
