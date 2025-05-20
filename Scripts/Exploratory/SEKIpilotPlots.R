@@ -11,7 +11,6 @@ pilotResin <- roughResin |>
          
 summary(roughResin)
 
-
 # Look at scatterplot of resin ducts across years colored by species 
 plot(roughResin$Calendar_Year, roughResin$Resin_Duct_Count, col = as.factor(roughResin$Species), pch = 16, ylab = "Resin Duct Count", xlab = "Year")
 
@@ -44,6 +43,7 @@ roughResin %>%  filter(Plot == "") # 51 blank lines
 roughResin <- roughResin %>% filter(Plot != "")
 roughResin %>%  filter(Plot == "91") # 52 that are missing aspect, so parsing is wrong
 # Check in the lab that PM plot 09 is North facing then fix 
+roughResin %>%  ifelse(Plot == "91", )
 
 summary(roughResin)
 roughResin %>% group_by(Plot) %>% summarize(Tree_count = n_distinct(Tree))
