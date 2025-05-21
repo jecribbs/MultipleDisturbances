@@ -22,6 +22,12 @@ summary(trees)
 # Also plot E60 trees 18-27 were estimated in rough blocks, so no coordinates
 trees <- trees %>% dplyr::filter(!is.na(verbatimLatitude))
 
+# Create spatial object
+trees_sf <- st_as_sf(trees, coords = c("verbatimLatitude", "verbatimLongitude"), crs = 4326)
+# Write out to .kml and .shp files
+st_write(plotssf, "outputSandbox/YPEPlots.kml", driver = "KML", delete_dsn = T)
+st_write(plotssf, "outputSandbox/YPEPlots.shp", driver = "ESRI Shapefile", delete_dsn = T)
+
 # Read in LiDAR file and set some color palettes
 las <- readLAS("data/MixedEucaNat_normalized.laz",  filter = "-set_withheld_flag 0")
 col <- height.colors(50)
