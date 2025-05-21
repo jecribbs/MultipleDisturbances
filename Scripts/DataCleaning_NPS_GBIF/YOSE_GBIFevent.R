@@ -10,20 +10,20 @@ library(sf)
 library(tmap)
 
 # read itmap# read in clean plot data
-plotData <- read.csv("/Users/jennifercribbs/Documents/YOSE/Analysis/MultipleDisturbances/dataSandbox/CleanData/PlotLevelData.csv")
+plotData <- read_csv("dataSandbox/CleanData/PlotLevelData.csv")
 
 # bring in merged ground and MTBS fire severity data
-fireData <- read.csv("/Users/jennifercribbs/Documents/YOSE/Analysis/MultipleDisturbances/dataSandbox/fireCompare_22052024.csv")
+fireData <- read_csv("dataSandbox/fireCompare_22052024.csv")
 
 # bring in estimated effort
-effortData <- read.csv("/Users/jennifercribbs/Documents/YOSE/Analysis/MultipleDisturbances/dataSandbox/CleanData/estimatedEffort.csv") %>% 
+effortData <- read_csv("dataSandbox/CleanData/estimatedEffort.csv") %>% 
   rename(plotID = "YPE.Plot.ID", effort = "Estimated.Effort..in.hrs.",
          startDateTime = "Start.Date.time",
          endDateTime = "End.Date.time") %>% 
   select(plotID, effort, startDateTime, endDateTime)
 
 # bring in spatial info
-spatial <- read.csv("/Users/jennifercribbs/Documents/YOSE/Analysis/MultipleDisturbances/Data/CleanData/SpatialDataCleaning.csv")
+spatial <- read.csv("dataSandbox/CleanData/SpatialDataCleaning.csv")
 
 # join prism and fire data then join to plot data
 #prismFire <- left_join(fireData, prismData, by = c("plotID" = "PlotID"))
