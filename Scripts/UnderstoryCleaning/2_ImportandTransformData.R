@@ -61,5 +61,5 @@ all_plots_understory <- lapply(understory_list, convert_understory_data_to_long)
 all_plots_understory <- do.call(rbind, all_plots_understory)
 
 # save as a csv file in the working directory
-write.csv(all_plots_understory, "UnderstoryDataLong.csv", row.names = FALSE) # don't save first column
+write.csv(all_plots_understory, "dataSandbox/RawData/UnderstoryDataLong.csv", row.names = FALSE) # don't save first column
 
