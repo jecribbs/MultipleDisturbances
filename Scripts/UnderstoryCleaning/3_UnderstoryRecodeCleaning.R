@@ -3,6 +3,7 @@
 
 # Authors: Jenny Cribbs & Tazlina Dentinger
 # Date: 21 April 2024
+# Updated more recently than that
 
 # Input: all_plots_understory data frame with 4 columns from step 2
 
