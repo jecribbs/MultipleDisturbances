@@ -18,10 +18,6 @@ library(tidyverse)
 # Read in data (or run Understory scripts 1 and 2)
 all_plots_understory <- read_csv("dataSandbox/RawData/UnderstoryDataLong.csv")
 
-#remove duplicated associated species rows:
-all_plots_understory <- all_plots_understory %>% 
-  filter(pin_vs_assoc == "pin" | (pin_vs_assoc == "assoc" & dOut_m == 2))
-
 #create unique ID for each plot & hit and number the hits to track the order
 all_plots_understory <- all_plots_understory %>% mutate(id = paste0("pl", plotID, "_", "pt", dOut_m))
 all_plots_understory <- all_plots_understory %>% group_by(id) %>% mutate(hitNum = row_number())
@@ -100,8 +96,8 @@ all_plots_understory <- all_plots_understory %>%
     species %in% c("castilleja", "castelleja") ~ "Castilleja",
     species == "enicamena" ~ "Ericameria",
     species == "Eriogunum sp." ~ "Eriogonum",
-    species == "Senicio glomerata" ~ "Senecio glomerata",
-    species == "Achillea millefolia" ~ "Achillea millifolium",
+    species == "Senicio glomerata" ~ "Senecio glomeratus",
+    species == "Achillea millefolia" ~ "Achillea millefolium",
     species %in% c("CAREXI", "CAREX", "carex") ~ "Carex",
     species == "Pseudoghaphalium californicum" ~ "Pseudognaphalium californicum",
     species %in% c("unk_apeaceae", "unk_apiaceae") ~ "Apiaceae",
@@ -125,6 +121,9 @@ all_plots_understory <- all_plots_understory %>%
     species == "epilobium" ~ "Epilobium",
     species %in% c("SALIX", "salix") ~ "Salix",
     species == "sedum" ~ "Sedum",
+    species == "forbe" ~ "forb",
+    species == "Gnaphalium californica" ~ "Gnaphalium californicum", 
+    species == "Lilum parvum" ~ "Lilium parvum",
     TRUE ~ species
   ))
 
@@ -146,6 +145,9 @@ all_plots_understory <- all_plots_understory %>%
     species == "aster" ~ "Asteraceae",
     species == "grass" ~ "Poaceae",
     species == "saxifrage" ~ "Saxifragaceae",
+    species == "moss" ~ "Bryophyta",
+    species == "sedge" ~ "Carex",
+    species == "forb" ~ paste0("forb_YPE", plotID),
     TRUE ~ species
   ))
 
@@ -165,7 +167,7 @@ all_plots_understory <- all_plots_understory %>%
     species == "BRCA" & plotID == 8 ~ "Poaceae", #paper data sheet said grass 1
     species %in% c("Juncus", "juncus") & plotID %in% c(49,73) ~ "Poales", #on paper as juncus/round carex
     species == "GAPRO" ~ "Pyrola", #on paper as wintergreen
-    species == "LOIN" ~ "shrub_1", #based on note on datasheet 
+    species == "LOIN" ~ "Philadelphus lewisii", #based on note on datasheet 
     species == "LUMA" ~ "LULA", #L. macrophyllum doesn't exist
     species == "Juncus patens" ~ "Juncus", #insufficient evidence of species-level ID
     species == "epilobium" & plotID == 25 ~ "Epilobium brachycarpum",
@@ -273,6 +275,7 @@ all_plots_understory <- forbfest
 spDict <- read_csv("dataSandbox/Dictionaries/Species Code Dictionary - Sheet1.csv")
 #remove ` in column names
 names(spDict) <- gsub("`", "", names(spDict))
+
 #keep only relevant columns
 spDict <- spDict %>% mutate(inProject = case_when(
   !is.na(...12) ~ paste(inProject, ...12, sep = ", "),
@@ -290,24 +293,40 @@ all_plots_understory <- all_plots_understory %>%
 #check species names
 unique(all_plots_understory$species)
 
-speciesList <- all_plots_understory %>% select(species) %>% unique
-write_csv(speciesList, "dataSandbox/CleanData/speciesList.csv")
-
+# speciesList <- all_plots_understory %>% select(species) %>% unique
+# write_csv(speciesList, "dataSandbox/CleanData/speciesList.csv")
 
 #Taxonstand
 library(U.Taxonstand)
 
-#U.Taxonstand database
-spDatabase1 <- read_csv("C:/Users/tazli/Downloads/YOSE_SugarPine/MultipleDisturbances/dataSandbox/Dictionaries/Plants_LCVP_database_part1.csv")
-spDatabase2 <- read_csv("C:/Users/tazli/Downloads/YOSE_SugarPine/MultipleDisturbances/dataSandbox/Dictionaries/Plants_LCVP_database_part2.csv")
-spDatabase3 <- read_csv("C:/Users/tazli/Downloads/YOSE_SugarPine/MultipleDisturbances/dataSandbox/Dictionaries/Plants_LCVP_database_part3.csv")
-spDatabase <- rbind(spDatabase1, spDatabase2, spDatabase3)
-rm(spDatabase1, spDatabase2, spDatabase3)
+# databases <- list("LCVP", "WFO", "WP", "WCVP")
+# 
+# for (db in databases)
+  
+#U.Taxonstand LCVP database
+LCVP1 <- read_csv("C:/Users/tazli/Downloads/YOSE_SugarPine/MultipleDisturbances/dataSandbox/Dictionaries/Plants_LCVP_database_part1.csv")
+LCVP2 <- read_csv("C:/Users/tazli/Downloads/YOSE_SugarPine/MultipleDisturbances/dataSandbox/Dictionaries/Plants_LCVP_database_part2.csv")
+LCVP3 <- read_csv("C:/Users/tazli/Downloads/YOSE_SugarPine/MultipleDisturbances/dataSandbox/Dictionaries/Plants_LCVP_database_part3.csv")
+LCVP <- rbind(LCVP1, LCVP2, LCVP3)
+rm(LCVP1, LCVP2, LCVP3)
 
 #use U.Taxonstand to spell check scientific names (takes a second)
-nameMatch <- nameMatch(spList=all_plots_understory$species, spSource=spDatabase, author = TRUE, max.distance= 4)
+nameMatchLCVP <- nameMatch(spList=all_plots_understory$species, spSource=LCVP, author = TRUE, max.distance= 4)
 #keep only rows with fuzzy matching
-nameMatchFuzzy <- nameMatch %>% select(Submitted_Name, Fuzzy, Name_in_database) %>% filter(Fuzzy == TRUE) #%>% unique()
+nameMatchLCVPFuzzy <- nameMatchLCVP %>% select(Submitted_Name, Fuzzy, Name_in_database) %>% filter(Fuzzy == TRUE) %>% distinct()
+
+#U.Taxonstand WP database
+WP1 <- read_csv("C:/Users/tazli/Downloads/YOSE_SugarPine/MultipleDisturbances/dataSandbox/Dictionaries/Plants_WP_database_part1.csv")
+WP2 <- read_csv("C:/Users/tazli/Downloads/YOSE_SugarPine/MultipleDisturbances/dataSandbox/Dictionaries/Plants_WP_database_part2.csv")
+WP3 <- read_csv("C:/Users/tazli/Downloads/YOSE_SugarPine/MultipleDisturbances/dataSandbox/Dictionaries/Plants_WP_database_part3.csv")
+WP <- rbind(WP1, WP2, WP3)
+rm(WP1, WP2, WP3)
+
+#use U.Taxonstand to spell check scientific names (takes a second)
+nameMatchWP <- nameMatch(spList=all_plots_understory$species, spSource=WP, author = TRUE, max.distance= 4)
+#keep only rows with fuzzy matching
+nameMatchWPFuzzy <- nameMatchWP %>% select(Submitted_Name, Fuzzy, Name_in_database) %>% filter(Fuzzy == TRUE) %>% distinct()
+
 #match accepted names to the misspelled rows
 all_plots_understory <- merge(all_plots_understory, nameMatchFuzzy, by.x = "species", by.y = "Submitted_Name", all.x = TRUE)
 #change misspelled names to database names
@@ -317,12 +336,19 @@ all_plots_understory <- all_plots_understory %>% mutate(species = case_when(
 )) %>% select(species, plotID, dOut_m, pin_vs_assoc)
 
 #Address name changes: What standard to use? 
-all_plots_understory <- all_plots_understory %>% 
-  mutate(species = case_when(
-    species == "piperia" ~ "Platanthera", #genus Pipera subsumed
-    species == "SACE" ~ "SAME", #Blue Elder moved to S. mexicana
-    TRUE ~ species
-  ))
+# all_plots_understory <- all_plots_understory %>% 
+#   mutate(species = case_when(
+#     species == "piperia" ~ "Platanthera", #genus Pipera subsumed
+#     species == "SACE" ~ "SAME", #Blue Elder moved to S. mexicana
+#     TRUE ~ species
+#   ))
+
+# Fill in confidentTo column
+all_plots_understory <- all_plots_understory %>% mutate(confidentTo = case_when(
+  species == Agrostis & plotID == 9 ~ "Poaceae",
+  TRUE ~ confidentTo
+))
+
 
 ##-------------------------------Add data quality flags----------------------------
 #Sanicula crassicaulis YPE 32 and 50 confident to genus
