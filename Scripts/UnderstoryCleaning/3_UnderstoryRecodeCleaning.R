@@ -37,10 +37,10 @@ all_plots_understory <- all_plots_understory %>% mutate(hitNum = case_when(
 #Still needs full check with full Unknown Veg Notes
 
 #read in Unknown Veg csv file
-unkVeg <- read_csv("Data/RawData/Unknown Veg Notes - UnknownPlants.csv")
+unkVeg <- read_csv("dataSandbox/Dictionaries/Unknown Veg Notes - UnknownPlants.csv")
 names(unkVeg) <- gsub(" ", "_", names(unkVeg))
 #keep only relevant columns and YOSE rows
-unkVeg <- unkVeg %>% select(project, asEntered, code, bestGuess, nextSteps, plotID) %>% filter(project == "YOSE")
+unkVeg <- unkVeg %>% select(project, asEntered, code, bestGuess, confidentTo, nextSteps, plotID) %>% filter(project == "YOSE")
 
 #Create unique columns by plotID and species in each df to merge
 unkVeg <- unkVeg %>% mutate(
@@ -53,10 +53,9 @@ all_plots_understory <- merge(all_plots_understory, unkVeg, by.x = "uniqueID", b
 all_plots_understory <- all_plots_understory %>% 
   mutate(species = case_when(
     nextSteps %in% c("ID'ed", "Not ID-able") ~ bestGuess, #need to clean up bestGuess column before using - or use Code?
-    #asEntered == "NA" ~ "ooooooo", #what the hell man - doesn't remotely work. Neither does regular NA or is.na or == "NA"
-    #when there is no entry in unkVeg ~ species
+    is.na(bestGuess) ~ species, #double check that this worked...
     TRUE ~ species
-  )) %>% select(plotID.x, dOut_m, pin_vs_assoc, species, hitNum) %>% rename(plotID = plotID.x)
+  )) %>% select(plotID.x, dOut_m, pin_vs_assoc, species, confidentTo, hitNum) %>% rename(plotID = plotID.x)
 
 ##-------------------------- Part 2: clean data "manually" in R ----------------------------
 #Includes fixing misspellings and incorrect entries or common names-------------------------
@@ -103,7 +102,7 @@ all_plots_understory <- all_plots_understory %>%
     species == "Eriogunum sp." ~ "Eriogonum",
     species == "Senicio glomerata" ~ "Senecio glomerata",
     species == "Achillea millefolia" ~ "Achillea millifolium",
-    species == "CAREXI" ~ "Carex",
+    species %in% c("CAREXI", "CAREX", "carex") ~ "Carex",
     species == "Pseudoghaphalium californicum" ~ "Pseudognaphalium californicum",
     species %in% c("unk_apeaceae", "unk_apiaceae") ~ "Apiaceae",
     species == "HIAE" ~ "HIAL",
@@ -123,6 +122,9 @@ all_plots_understory <- all_plots_understory %>%
     species == "Erythranthre" ~ "Erythranthe",
     species == "RINI" ~ "RIVI", #incorrectly entered from plot 19
     species == "ARVE" ~ "ARVI", #over walkie-talkie...
+    species == "epilobium" ~ "Epilobium",
+    species %in% c("SALIX", "salix") ~ "Salix",
+    species == "sedum" ~ "Sedum",
     TRUE ~ species
   ))
 
@@ -143,6 +145,7 @@ all_plots_understory <- all_plots_understory %>%
     species == "Dodder" ~ "Cuscuta",
     species == "aster" ~ "Asteraceae",
     species == "grass" ~ "Poaceae",
+    species == "saxifrage" ~ "Saxifragaceae",
     TRUE ~ species
   ))
 
@@ -175,6 +178,7 @@ all_plots_understory <- all_plots_understory %>%
     species == "FRCA" ~ "Frangula", 
     species %in% c("TAER", "TAOC") ~ "Taraxacum",
     species == "CYOF" & plotID == 21 ~ "Adelinia grandis",
+    species == "Lathyrus nevadensis var. nevadensis" ~ "Lathyrus nevadensis", #unnecessary
     TRUE ~ species
   ))
 
@@ -195,11 +199,12 @@ grassgroup <- carexcheck %>%
     TRUE ~ species
   ))
 
-# lump all unknown forbs for now
+# NEEDS TESTING WITH NEW UNKNOWN VEG NOTES
+# Assign all unknown forbs a plot-based unique ID, and set confidentTo to Magnoliopsida, allowing for an under- and overestimate calculation of species richness
 forbfest <- grassgroup %>% 
   mutate(species = case_when(
-    grepl("^forb_", species, ignore.case = TRUE) ~ "forb",
-    species %in% c("forb 1", "Forb", "forbe", "forbe_1", "forbe_2", "forb_1", "forbe_unknown", "forb_unknown") ~ "forb",
+    grepl("^forb_", species, ignore.case = TRUE) ~ paste0("forb", plotID), 
+    species %in% c("forb 1", "Forb", "forbe", "forbe_1", "forbe_2", "forb_1", "forbe_unknown", "forb_unknown") ~ paste0("forb", plotID),
     TRUE ~ species
   ))
 
@@ -265,30 +270,37 @@ all_plots_understory <- forbfest
 ##-------- Part 4: Use Species Code Dictionary & Taxonstand to apply scientific names --------
 
 #read in Species Code Dictionary csv file
-spDict <- read_csv("dataSandbox/Dictionnaries/Species Code Dictionary.csv")
-#replace spaces with underscores in column names
-names(spDict) <- gsub(" ", "_", names(spDict))
+spDict <- read_csv("dataSandbox/Dictionaries/Species Code Dictionary - Sheet1.csv")
+#remove ` in column names
+names(spDict) <- gsub("`", "", names(spDict))
 #keep only relevant columns
-spDict <- spDict %>% select(Code, Scientific_Name)
+spDict <- spDict %>% mutate(inProject = case_when(
+  !is.na(...12) ~ paste(inProject, ...12, sep = ", "),
+  TRUE ~ inProject)) %>% 
+  select(code, scientificName, lifeForm, nativeVsIntroduced, annualVsPerennial, inProject)
 
 #use merge to map codes in dictionary to codes in df
-all_plots_understory_test <- merge(all_plots_understory, spDict, by.x = "species", by.y = "Code", all.x = T) #CHANGE BACK TO TRUE to keep all vals
-all_plots_understory_test <- all_plots_understory_test %>% 
+all_plots_understory <- merge(all_plots_understory, spDict, by.x = "species", by.y = "code", all.x = T) #CHANGE BACK TO TRUE to keep all vals
+all_plots_understory <- all_plots_understory %>% 
   mutate(species = case_when(
-    !is.na(all_plots_understory_test$Scientific_Name) ~ all_plots_understory_test$Scientific_Name, #is.na doesn't work still - converts a bunch of data to na
+    !is.na(all_plots_understory$scientificName) ~ all_plots_understory$scientificName, #is.na doesn't work still - converts a bunch of data to na
     TRUE ~ species
-  )) %>% select(!Scientific_Name)
+  )) %>% select(!scientificName)
 
 #check species names
 unique(all_plots_understory$species)
+
+speciesList <- all_plots_understory %>% select(species) %>% unique
+write_csv(speciesList, "dataSandbox/CleanData/speciesList.csv")
+
 
 #Taxonstand
 library(U.Taxonstand)
 
 #U.Taxonstand database
-spDatabase1 <- read_csv("C:/Users/tazli/Downloads/YOSE_SugarPine/MultipleDisturbances/dataSandbox/Dictionnaries/Plants_LCVP_database_part1.csv")
-spDatabase2 <- read_csv("C:/Users/tazli/Downloads/YOSE_SugarPine/MultipleDisturbances/dataSandbox/Dictionnaries/Plants_LCVP_database_part2.csv")
-spDatabase3 <- read_csv("C:/Users/tazli/Downloads/YOSE_SugarPine/MultipleDisturbances/dataSandbox/Dictionnaries/Plants_LCVP_database_part3.csv")
+spDatabase1 <- read_csv("C:/Users/tazli/Downloads/YOSE_SugarPine/MultipleDisturbances/dataSandbox/Dictionaries/Plants_LCVP_database_part1.csv")
+spDatabase2 <- read_csv("C:/Users/tazli/Downloads/YOSE_SugarPine/MultipleDisturbances/dataSandbox/Dictionaries/Plants_LCVP_database_part2.csv")
+spDatabase3 <- read_csv("C:/Users/tazli/Downloads/YOSE_SugarPine/MultipleDisturbances/dataSandbox/Dictionaries/Plants_LCVP_database_part3.csv")
 spDatabase <- rbind(spDatabase1, spDatabase2, spDatabase3)
 rm(spDatabase1, spDatabase2, spDatabase3)
 
