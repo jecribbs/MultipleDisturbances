@@ -206,7 +206,7 @@ grassgroup <- carexcheck %>%
 forbfest <- grassgroup %>% 
   mutate(species = case_when(
     grepl("^forb_", species, ignore.case = TRUE) ~ paste0("forb", plotID), 
-    species %in% c("forb 1", "Forb", "forbe", "forbe_1", "forbe_2", "forb_1", "forbe_unknown", "forb_unknown") ~ paste0("forb", plotID),
+    species %in% c("forb 1", "Forb", "forbe", "forbe_1", "forbe_2", "forb_1", "forbe_unknown", "forb_unknown") ~ paste0("forb_YPE", plotID),
     TRUE ~ species
   ))
 
@@ -296,6 +296,8 @@ unique(all_plots_understory$species)
 # speciesList <- all_plots_understory %>% select(species) %>% unique
 # write_csv(speciesList, "dataSandbox/CleanData/speciesList.csv")
 
+# MOVE TO SEPARATE SCRIPT 
+
 #Taxonstand
 library(U.Taxonstand)
 
@@ -316,9 +318,9 @@ nameMatchLCVP <- nameMatch(spList=all_plots_understory$species, spSource=LCVP, a
 nameMatchLCVPFuzzy <- nameMatchLCVP %>% select(Submitted_Name, Fuzzy, Name_in_database) %>% filter(Fuzzy == TRUE) %>% distinct()
 
 #U.Taxonstand WP database
-WP1 <- read_csv("C:/Users/tazli/Downloads/YOSE_SugarPine/MultipleDisturbances/dataSandbox/Dictionaries/Plants_WP_database_part1.csv")
-WP2 <- read_csv("C:/Users/tazli/Downloads/YOSE_SugarPine/MultipleDisturbances/dataSandbox/Dictionaries/Plants_WP_database_part2.csv")
-WP3 <- read_csv("C:/Users/tazli/Downloads/YOSE_SugarPine/MultipleDisturbances/dataSandbox/Dictionaries/Plants_WP_database_part3.csv")
+WP1 <- read_csv("C:/Users/tazli/Downloads/YOSE_SugarPine/MultipleDisturbances/dataSandbox/Dictionaries/Plants_WP_database_part1.csv", show_col_types = FALSE)
+WP2 <- read_csv("C:/Users/tazli/Downloads/YOSE_SugarPine/MultipleDisturbances/dataSandbox/Dictionaries/Plants_WP_database_part2.csv", show_col_types = FALSE)
+WP3 <- read_csv("C:/Users/tazli/Downloads/YOSE_SugarPine/MultipleDisturbances/dataSandbox/Dictionaries/Plants_WP_database_part3.csv", show_col_types = FALSE)
 WP <- rbind(WP1, WP2, WP3)
 rm(WP1, WP2, WP3)
 
@@ -326,6 +328,14 @@ rm(WP1, WP2, WP3)
 nameMatchWP <- nameMatch(spList=all_plots_understory$species, spSource=WP, author = TRUE, max.distance= 4)
 #keep only rows with fuzzy matching
 nameMatchWPFuzzy <- nameMatchWP %>% select(Submitted_Name, Fuzzy, Name_in_database) %>% filter(Fuzzy == TRUE) %>% distinct()
+
+#U.Taxonstand WFO database
+load("dataSandbox/Dictionaries/Plants_WFO.rdata") 
+WFO <- database
+rm(database)
+
+nameMatchWFO <- nameMatch(spList=all_plots_understory$species, spSource=WFO, author = TRUE, max.distance= 4)
+nameMatchWFOFuzzy <- nameMatchWFO %>% select(Submitted_Name, Fuzzy, Name_in_database) %>% filter(Fuzzy == TRUE) %>% distinct()
 
 #match accepted names to the misspelled rows
 all_plots_understory <- merge(all_plots_understory, nameMatchFuzzy, by.x = "species", by.y = "Submitted_Name", all.x = TRUE)
@@ -343,17 +353,5 @@ all_plots_understory <- all_plots_understory %>% mutate(species = case_when(
 #     TRUE ~ species
 #   ))
 
-# Fill in confidentTo column
-all_plots_understory <- all_plots_understory %>% mutate(confidentTo = case_when(
-  species == Agrostis & plotID == 9 ~ "Poaceae",
-  TRUE ~ confidentTo
-))
 
-
-##-------------------------------Add data quality flags----------------------------
-#Sanicula crassicaulis YPE 32 and 50 confident to genus
-#Galium triflorum YPE 12, 59, 32 confident to genus
-#Galium porrigens YPE 73 confident to genus
-#Agrostis ype 9 confident to family
-
-##-------------------------------Part 6: Write dataframe to csv-----------------------------------
+##-------------------------------Part 5: Write dataframe to csv-----------------------------------
